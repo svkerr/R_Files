@@ -1,8 +1,10 @@
 # Text Reference: Machine Learning With R
 # Text Reference: Intro to Statistical Learning: With Apps in R
+# Text Reference: Data Analysis with Open Source Tools
 
-# Set working directory
+# Set working directory per Text above:
 setwd("/Users/stuart/Desktop/BigDataDocumentation/DataSets/MachineLearningWithRDatasets/")
+setwd("/Users/stuart/Desktop/BigDataDocumentation/DataSets/")
 
 # Load Libraries
 library(gmodels)   # For CrossTables
@@ -16,7 +18,8 @@ usedcars$conservative <- usedcars$color %in% c("Black","Gray","Silver","White")
 table(usedcars$conservative)
 CrossTable(x = usedcars$model, y=usedcars$conservative)
 
-##### kNN Algorithm #############################################
+##### kNN Algorithm ##########################################################
+# Ref: Machine Learning with R
 # Step 1: Collecting Data
 # Get breast cancer dataset
 wbcd <- read.csv("chapter 3/wisc_bc_data.csv", stringsAsFactors = FALSE)
@@ -76,7 +79,8 @@ CrossTable(x = wbcd_test_labels, y = wbcd_test_pred, prop.chisq=FALSE)
 
 # Analyzing results, we see by transforming using Z-Scores, decreases our prediction accuracy
 
-################## Support Vector Machines -- Machine Learning With R ###################
+################## Support Vector Machines ###############################################
+# Ref: Machine Learning with R
 # STEP 2: Explore and prepare the data
 letters <- read.csv("chapter 7/letterdata.csv")
 
@@ -97,7 +101,8 @@ letter_predictions <- predict(letter_classifier, letters_test)
 # Now, let's compare the predicted letter to the true letter in the testing dataset:
 table(letter_predictions, letters_test$letter)
 
-################## Support Vector Machines -- Intro to Statistical Learning: With Apps in R  ###################
+################## Support Vector Machines ##########################################
+# Ref: Intro to Statistical Learning: With Apps in R  
 set.seed(1)
 x <- matrix(rnorm(20*2),ncol=2)    # create data matrix
 y <- c(rep(-1,10),rep(1,10))       # create label vector
@@ -146,3 +151,23 @@ svmfit<- svm(y~., data=dat, kernel="linear",cost=0.01,scale=FALSE)
 ypred <- predict(svmfit,testdat)
 CrossTable(x = testdat$y, y = ypred, prop.chisq=FALSE)
 # In this case, one additional observation is misclassified
+
+############## Principal Component Analysis  ##################################################
+# Ref: Data Analysis with Open Source Tools
+
+wine <- read.csv("winequality-white.csv", sep=";", header=TRUE)
+pc <- prcomp(wine)        # perform a PCA
+attributes(pc)
+plot(pc)                  # see first eigenvalue (variance) dominates the others (doesn't seem right, maybe a rescale is necessary?)
+print(pc)                 
+# Let's find out more about the data
+summary(wine)
+table(wine$quality)
+summary(wine$alcohol)
+
+# So let's rescale because of the total sulfur dioxide scale
+pcx <- prcomp(wine,scale=TRUE)
+plot(pcx)
+print(pcx)
+summary(pcx)
+biplot(pcx)
