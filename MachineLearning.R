@@ -3,8 +3,8 @@
 # Text Reference: Data Analysis with Open Source Tools
 
 # Set working directory per Text above:
-setwd("/Users/stuart/Desktop/BigDataDocumentation/DataSets/MachineLearningWithRDatasets/")
-setwd("/Users/stuart/Desktop/BigDataDocumentation/DataSets/")
+setwd("/Users/stuart/DataSets/MachineLearningWithRDatasets/")
+setwd("/Users/stuart/DataSets/")
 
 # Load Libraries
 library(gmodels)   # For CrossTables
