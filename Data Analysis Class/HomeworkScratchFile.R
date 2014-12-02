@@ -124,4 +124,3 @@ str(kmeans.result)
 plot(quiz3.ques4[c("x", "y")], col = kmeans.result$cluster)
 ## Plot cluster centers
 points(kmeans.result$centers[,c("x", "y")], col =  1:2, pch=8, cex=2)
-#################################
