@@ -1,0 +1,61 @@
+---
+title: "SFPD Markdown"
+output: html_document
+---
+
+
+```{r,echo=FALSE,message=FALSE}
+setwd("~/R_Files/")
+```
+
+```{r,echo=FALSE,message=FALSE}
+library(dplyr)
+library(dplyr)
+library(ggvis)
+library(ggplot2)
+library(lubridate)
+library(reshape2)
+library(utils)
+```
+
+```{r,echo=FALSE}
+setwd("~/DataSets/sanfran/Clean/sfpd_subset/")
+dataset <-read.table("sfpd_incident_2013_copy.csv", header=TRUE, sep=",", stringsAsFactors = FALSE)
+names(dataset) = tolower(names(dataset))
+dataset$category = tolower(dataset$category)
+dataset$descript = tolower(dataset$descript)
+dataset$dayofweek = tolower(dataset$dayofweek)
+dataset$pddistrict = tolower(dataset$pddistrict)
+dataset$resolution = tolower(dataset$resolution)
+dataset$location = tolower(dataset$location)
+sfpd = tbl_df(dataset)
+```
+
+Let's take a *glimpse* at SFPD's 2013 crime archive
+```{r,echo=FALSE}
+glimpse(sfpd)
+```
+```{r,echo=FALSE}
+sfpd[-12] %>%
+  group_by(category) %>%
+  summarise(crimes = n()) %>%
+  arrange(desc(crimes))
+```
+
+```{r, echo=FALSE}
+par(mfrow=c(1,2))
+barplot(sort(table(sfpd$pddistrict),decreasing=FALSE), main="Crimes per District",las=3)
+hist(sfpd$x,main="SF Crimes by Longitude", xlab ="Longitude")     # longitude
+par(mfrow=c(1,1))
+```
+```{r,echo=FALSE}
+sfpd$hrmin = hm(sfpd$time)
+qplot(hour(sfpd$hrmin), data=sfpd, main="SF Crimes by Hour of Day", binwidth=1,xlab="Hour",xlim=c(0,23),geom="histogram")
+qplot(minute(sfpd$hrmin), data=sfpd, main="SF Crimes by Minute of Recorded Hour", binwidth=1,xlab="Minute",xlim=c(0,59),geom="histogram")
+```
+```{r,echo=FALSE}
+assault = subset(sfpd, category=="assault")
+qplot(hour(assault$hrmin), data=assault, main="SF Assault by Hour of Day", binwidth=1,xlab="Hour",xlim=c(0,23),geom="histogram")
+```
+
+![Plot of Cluster Centers and SFPD District HQs](/Users/stuart/Desktop/SFPD_Images/SFPD_And_Clusters.jpg)
