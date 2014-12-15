@@ -55,8 +55,18 @@ table(rwm1984$docvis)
 mean(rwm1984$docvis); var(rwm1984$docvis)
 # Given a mean of 3.162881 a Poisson distr will be expected to have below # of zeroes:
 exp(-3.162881)*3.162881^0/factorial(0)
-# We expect 4.2% zeroes versus the observed:
-table(rwm1984$docvis)[1]/sum(rwm1984$docvis)  # of 13.1%
+# We expect 4.2% zeroes versus the observed value of 13.1%
+table(rwm1984$docvis)[1]/sum(rwm1984$docvis)  
 # Thus the model is Poisson overdispersed
 
-# Two other explanatory variables that we will work with are outwork and age. A best practice will center a continuous predictor when it starts far from 0, as in the case with age. So we will do so.
+# Two other explanatory variables that we will work with are 'outwork' and 'age'. 
+# There are 40 distinct ages:
+length(unique(rwm1984$age))
+# A best practice will center a continuous predictor when it starts far from 0, as in the case with age. We will do so.
+# NOTE: centering changes only the intercept in the model, all other predictor coefficients and standard errors, and fit statistics, stay the same. We will interpret age differently when centered.
+cage = rwm1984$age - mean(rwm1984$age)
+poic = glm(docvis ~ outwork + age, family=poisson, data=rwm1984)
+summary(poic)
+pr = sum(residuals(poic,type="pearson")^2)     # Pearson Chi2
+pr/poic$df.residual                            # Dispersion Statistic
+# We see that the dispersion statistic of 11.34 exceeds the ideal value for a Poisson Model of 1.0
