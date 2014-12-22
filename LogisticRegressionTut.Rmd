@@ -1,6 +1,6 @@
 ---
 title: "Model Update"
-output: html_document
+output: pdf_document
 ---
 ```{r,echo=FALSE,message=FALSE}
 setwd("~/R_Files/")
@@ -13,13 +13,14 @@ setwd("~/R_Files/")
 
 * The _Explanatory (Predictor) Variables_ may be continuous or categorical
 
-* Desire to use a _linear model_: Powerful notion that we can express the effect of the predictors on the response through a linear predictor
+* Desire to use a _linear model_: Powerful in that we can express the effect of the predictors on the response through a linear predictor
 
 #### Using linear regression on binomial Response Variable violates key assumptions:
 
 * Variance of response variable is fairly constant
 
 * Residuals are approximately normally distributed 
+
 
 #### Some Definitions:
 
@@ -29,9 +30,9 @@ setwd("~/R_Files/")
 
 #### Logistic Regression:
 
-* Basic idea of Logistic Regression is to use linear regression by modeling the probability ($P_i$) using a linear predictor function.
-
-* Create a more "general" model while retaining the "linear approach"
+* Basic idea of Logistic Regression:
+     + Use linear regression by modeling the probability ($P_i$) using a linear predictor function
+     + Create a more "general" model while retaining the "linear approach"
      + Allows for non-linear relationships between predictors and response variable
 
 
@@ -66,7 +67,7 @@ In January 1986, Challenger exploded shortly after launch. Fact finding focused 
 
 Each shuttle had two boosters, with 3 O-rings each. In previous 23 missions, evidence of O-ring damage was recorded. For each mission, we know the number of O-rings out of 6 showing damage, and temperature.
 
-We are interested in the probability of failure in O-rings is related to temperature, and the probability of failure at a given temperature. Oddly, we'll code a failure (extensive damage) = success (easier for modeling).
+We are interested in how O-ring failure is related to temperature, and the probability of failure at a given temperature. Oddly, we'll code a failure (extensive damage) = success (easier for modeling).
 
 ```{r,echo=FALSE,message=FALSE}
 library(dplyr)
@@ -76,20 +77,22 @@ library(faraway)
 data(orings)
 lmod = lm(damage/6 ~ temp,orings)
 ```
+
 The figure below demonstrates that Linear Regression is not a good model 
+
 ```{r,echo=FALSE,message=FALSE}
 plot(damage/6 ~ temp,orings)
 abline(lmod)
 ```
 
-Now let's create a logistic regression model using this data:
+Create a logistic regression model using this data:
 ```{r,echo=FALSE,message=FALSE}
 logitmod = glm(cbind(damage,6-damage) ~ temp, family=binomial(link=logit),orings)
 ```
 ```{r}
 summary(logitmod)
 ```     
-We can now use the model to calculate:
+Use the model to calculate:
 
 1. the effect of temperature on the odds of "success"
 2. the probability of a "success" at 31 deg F
@@ -107,6 +110,7 @@ Using the logistic regression model we can determine the probability of "success
 ```
 
 Let's plot the model's estimate probabilities of "success" versus temperature
+
 ```{r,echo=FALSE}
 plot(damage/6 ~ temp,orings,xlim=c(25,85), ylim=c(0,1),
      xlab="Temperature",ylab="Prob of damage")
