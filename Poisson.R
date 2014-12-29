@@ -2,7 +2,8 @@
 # Text: Modeling Count Data
 
 # Load libraries and appropriate data sets
-library("COUNT")
+library("COUNT")  # Text: Modeling Count Data
+library(faraway)  # Text: Extending the Linear Model with R
 library(dplyr)
 data("smoking")
 attach(smoking)    # so i won't have to use smoking$variable
@@ -65,8 +66,39 @@ length(unique(rwm1984$age))
 # A best practice will center a continuous predictor when it starts far from 0, as in the case with age. We will do so.
 # NOTE: centering changes only the intercept in the model, all other predictor coefficients and standard errors, and fit statistics, stay the same. We will interpret age differently when centered.
 cage = rwm1984$age - mean(rwm1984$age)
-poic = glm(docvis ~ outwork + age, family=poisson, data=rwm1984)
+poic = glm(docvis ~ outwork + age, family=poisson, data=rwm1984)  # The model
 summary(poic)
 pr = sum(residuals(poic,type="pearson")^2)     # Pearson Chi2
 pr/poic$df.residual                            # Dispersion Statistic
 # We see that the dispersion statistic of 11.34 exceeds the ideal value for a Poisson Model of 1.0
+
+# In summary at this point:
+# 1 There are excessive 0 counts in docvis given its mean (and assumed poisson pdf)
+# 2 The variance of docvis far exceeds its mean, and
+# 3 The dispersion stat of (11.34) is much greater than 1,
+# it's not unwarranted to conclude that the model is truly overdispersed. The predictors all have p-values under 0.05 and thereby appear to significantly contributed to understanding (and predicting) docvis --- but they do not. The bias resulting from overdispersion means that p-values tell us nothing about the relationship of predictor to response. Remember this!!
+
+#### Interpreting Poisson model coefficients
+# The coefficient B_j in general is the change in the "log-count" of the response for a one-unit change in the predictor. Note for a binary predictor, this is from a change from 0 to 1. When a continuous predictor is centered, the reference is its mean value.
+
+# Let's take another look at the data (without centering age)
+rwm1984 = subset(rwm5yr, year == 1984)
+poi1 = glm(docvis ~ outwork + age, family=poisson, data = rwm1984)
+summary(poi1)
+pr = sum(residuals(poi1,type="pearson")^2)  # Pearson Chi2
+pr/poi1$df.residual                         # Dispersion statistic
+poi1$aic/(poi1$df.null + 1)                 # AIC/n
+exp(coef(poi1))                             # IRR (Incidence Rate Ratios)
+# Note: Per calculated above, the IRR indicates the ratio fo the rate counts between two ascending contiguous levels of the response. We interpret the IRRs:
+# 1 Out of work patients had 1.5 times more visits than patients who were working (age held constant)
+# 2 Patients visited a physician about 2.2% mroe often with each year older in age (if age is centered for each year difference form the mean age, there is about a 2.2% decrease of increase in the mean number of visits, outwork held constant)
+# 3 Probabilistically: out of work patients were 1.5 times mroe likely (or more probable) to visit a physician than working patients.
+exp(coef(poi1)) * sqrt(diag(vcov(poi1)))    # delta method
+# Note: The standard errors are the square root of the diagonal terms of the inverse negative of the Hessian. This can be found by also taking the square root of the diagnoal terms of the variance-covariance matrix of the model coefficients. Per above.
+
+coef(poi1)/sqrt(diag(vcov(poi1)))
+# Note: A z-value is simply the ratio of the coefficient and associated standard error. Per above
+exp(confint.default(poi1))                  # CI of IRR
+
+## Rate Ratios and Probability
+# In order to have a change in predictor value reflect a change in actual visits, we must exponentiate the coefficient. 

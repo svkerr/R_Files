@@ -140,6 +140,8 @@ bridges$Dual.Sign...Single.Unit.Vehicle...Posted.Capacity..in.tons. = NULL
 bridges$Dual.Sign...Combination.Unit.Vehicle...Posted.Capacity..in.tons. = NULL
 bridges$Weight.Posting.Status=NULL
 bridges$Responsibility=NULL
+bridges$Func.Obslt=NULL
+bridges$Struc.Defic=NULL
 
 # Get a feel for when bridges were built
 county_bridges = bridges %>%
