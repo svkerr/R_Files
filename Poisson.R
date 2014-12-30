@@ -89,12 +89,12 @@ pr = sum(residuals(poi1,type="pearson")^2)  # Pearson Chi2
 pr/poi1$df.residual                         # Dispersion statistic
 poi1$aic/(poi1$df.null + 1)                 # AIC/n
 exp(coef(poi1))                             # IRR (Incidence Rate Ratios)
-# Note: Per calculated above, the IRR indicates the ratio fo the rate counts between two ascending contiguous levels of the response. We interpret the IRRs:
+# Note: Per calculated above, the IRR indicates the ratio for the rate counts between two ascending contiguous levels of the response. We interpret the IRRs:
 # 1 Out of work patients had 1.5 times more visits than patients who were working (age held constant)
 # 2 Patients visited a physician about 2.2% mroe often with each year older in age (if age is centered for each year difference form the mean age, there is about a 2.2% decrease of increase in the mean number of visits, outwork held constant)
 # 3 Probabilistically: out of work patients were 1.5 times mroe likely (or more probable) to visit a physician than working patients.
 exp(coef(poi1)) * sqrt(diag(vcov(poi1)))    # delta method
-# Note: The standard errors are the square root of the diagonal terms of the inverse negative of the Hessian. This can be found by also taking the square root of the diagnoal terms of the variance-covariance matrix of the model coefficients. Per above.
+# Note: The standard errors are the square root of the diagonal terms of the inverse negative of the Hessian. This can be found by also taking the square root of the diagonal terms of the variance-covariance matrix of the model coefficients. Per above.
 
 coef(poi1)/sqrt(diag(vcov(poi1)))
 # Note: A z-value is simply the ratio of the coefficient and associated standard error. Per above
@@ -102,3 +102,33 @@ exp(confint.default(poi1))                  # CI of IRR
 
 ## Rate Ratios and Probability
 # In order to have a change in predictor value reflect a change in actual visits, we must exponentiate the coefficient. 
+
+## Modeling over Time, Area and Space
+data(fasttrakg)
+str(fasttrakg)
+# fastrtrakg data:
+# die = count of number of deaths (response)
+# anterior = did patient have a previous anterior infarction
+# hcabg = did patient have a history of coronary bypass grafting
+# killip = summary of cardiovascular health indicators (bigger number is bad)
+fast = glm(die ~ anterior + hcabg + factor(killip), family="poisson", offset=log(cases),data=fasttrakg)
+summary(fast)
+exp(coef(fast))                            # IRR (Incident Rate Ratios)
+exp(coef(fast)) * sqrt(diag(vcov(fast)))   # delta method
+exp(confint.default(fast))                 # CI of IRR
+modelfit(fast)
+pr = sum(residuals(fast,type="pearson")^2)  # Pearson Chi2
+pr/fast$df.residual                         # Dispersion statistic
+
+# Interpretation of above model results:
+# 1 Patients having an anterior site heart attrack are twice as likely to die than if damage was to other part of the heart
+# 2 Patients with history of having a CABG procedure are twice as likely to die than if they did not have a procedure
+# 3 Patients having a killip 2 status are 2.5 times as likely to die than if they have a killip level 1 status; having a killip 3 status are 3 times as likely to die and those at killip level 4 are 12 times more likely to die than those with no apparent heart problems
+# 4 Those at first the dispersion statistic of 1.4 may appear low, the added 40% dispersion may prepresent a lack of model fit. Note: After graphing fitted.values(fast) to residuals(fast) there appears to be one outlier (the 2nd and 10th observations):
+foo = data.frame(cbind(fitted.values(fast),residuals(fast)))
+foo %>%
+  ggvis(~X1, ~X2, fill:="red") %>%
+  layer_points() %>%
+  layer_model_predictions(model = "lm")
+
+## Prediction
