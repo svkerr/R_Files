@@ -91,7 +91,7 @@ poi1$aic/(poi1$df.null + 1)                 # AIC/n
 exp(coef(poi1))                             # IRR (Incidence Rate Ratios)
 # Note: Per calculated above, the IRR indicates the ratio for the rate counts between two ascending contiguous levels of the response. We interpret the IRRs:
 # 1 Out of work patients had 1.5 times more visits than patients who were working (age held constant)
-# 2 Patients visited a physician about 2.2% mroe often with each year older in age (if age is centered for each year difference form the mean age, there is about a 2.2% decrease of increase in the mean number of visits, outwork held constant)
+# 2 Patients visited a physician about 2.2% more often with each year older in age (if age is centered for each year difference form the mean age, there is about a 2.2% decrease of increase in the mean number of visits, outwork held constant)
 # 3 Probabilistically: out of work patients were 1.5 times mroe likely (or more probable) to visit a physician than working patients.
 exp(coef(poi1)) * sqrt(diag(vcov(poi1)))    # delta method
 # Note: The standard errors are the square root of the diagonal terms of the inverse negative of the Hessian. This can be found by also taking the square root of the diagonal terms of the variance-covariance matrix of the model coefficients. Per above.
@@ -132,3 +132,49 @@ foo %>%
   layer_model_predictions(model = "lm")
 
 ## Prediction
+myglm = glm(docvis ~ outwork + age, family=poisson, data=rwm1984)
+summary(myglm)
+# Let's predict number of doc visits for a 50 year-old working patient (outwork = 0). Using the model's coefficients:
+working_pred = 50 * coef(myglm)[3] + coef(myglm)[1]  # remember - this gives you log(mu)
+exp(working_pred)
+# On basis of this model, we predict a working 50 year-old german will visit the doctor 3 times in 1984
+
+# Predicted counts and their 95% confidence interval may be obtained from:
+lpred = predict(myglm, newdata=rwm1984,type="link", se.fit=TRUE)
+up = lpred$fit + (1.96*lpred$se.fit)
+lo = lpred$fit - (1.96*lpred$se.fit)
+eta = lpred$fit
+mu = myglm$family$linkinv(eta)
+upci = myglm$family$linkinv(up)
+loci = myglm$family$linkinv(lo)
+summary(loci)
+summary(mu)
+summary(upci)
+layout(1); plot(eta, mu); lines(eta, loci, col=2, type='p');
+lines(eta,upci, col=3, type='p')
+
+##### Testing Overdispersion
+# Basics of Goodness-of-Fit
+# The Deviance GOF test is based on the view that the deviance is distributed as Chi2. Deviance is in effect a measure of the distance between the most full (saturated) model we can fit, and the proposed model we are testing for fit.
+# Using the German health data:
+library(COUNT)
+data(rwm5yr)
+rwm1984 = subset(rwm5yr, year==1984)
+
+mymod = glm(docvis ~ outwork + age, family=poisson, data=rwm1984)
+mymod
+dev = deviance(mymod)
+df = df.residual(mymod)
+p_value = 1 - pchisq(dev,df)
+p_value
+# Since the Chi2 p-value is less than 0.05, it indicates model is a good fit
+# This test statistic evaluates whether the vlaue of the deviance, for a specifi model size, is close enought to that of the saturated model that it cannot be rejected as fitting
+
+# Calculate Dispersion Statistics and p-values
+pr = sum(residuals(mymod, type="pearson")^2)    # Pearson Chi2
+pr/mymod$df.residual                            # Dispersion statistic
+pchisq(pr, mymod$df.residual, lower=F)          # Calculate p-value
+pchisq(mymod$deviance, mymod$df.residual,lower=F) # Previously calculated above differently
+
+# Function to calculate Pearson Chi2 and Dispersion Statistics
+
