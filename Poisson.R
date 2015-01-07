@@ -51,14 +51,17 @@ library(COUNT)
 data(rwm5yr)
 rwm1984 = subset(rwm5yr,year==1984)
 # Knowing the dataset is vital to the modeling process. so let's table(docvis)
-table(rwm1984$docvis)
+docvis_cnt = table(rwm1984$docvis)
+dataf_docvis = data.frame(prop.table(table(rwm1984$docvis)))
+dataf_docvis$cumulative = cumsum(dataf_docvis$Freq)
+dataf_docvis_all = data.frame(docvis_cnt,dataf_docvis$Freq*100, dataf_docvis$cumulative * 100)
+dataf_docvis_all
 # notice there are lots of 0 counts
 mean(rwm1984$docvis); var(rwm1984$docvis)
 # Given a mean of 3.162881 a Poisson distr will be expected to have below # of zeroes:
 exp(-3.162881)*3.162881^0/factorial(0)
-# We expect 4.2% zeroes versus the observed value of 13.1%
-table(rwm1984$docvis)[1]/sum(rwm1984$docvis)  
-# Thus the model is Poisson overdispersed
+# We expect 4.2% zeroes versus the observed value of 41.6%
+# Thus the model is Poisson overdispersed. We also see that by comparing the population mean and variance (should be nearly equal)
 
 # Two other explanatory variables that we will work with are 'outwork' and 'age'. 
 # There are 40 distinct ages:
@@ -67,6 +70,7 @@ length(unique(rwm1984$age))
 # NOTE: centering changes only the intercept in the model, all other predictor coefficients and standard errors, and fit statistics, stay the same. We will interpret age differently when centered.
 cage = rwm1984$age - mean(rwm1984$age)
 poic = glm(docvis ~ outwork + age, family=poisson, data=rwm1984)  # The model
+poic = glm(docvis ~ outwork + cage, family=poisson, data=rwm1984)  # The model
 summary(poic)
 pr = sum(residuals(poic,type="pearson")^2)     # Pearson Chi2
 pr/poic$df.residual                            # Dispersion Statistic
@@ -76,7 +80,7 @@ pr/poic$df.residual                            # Dispersion Statistic
 # 1 There are excessive 0 counts in docvis given its mean (and assumed poisson pdf)
 # 2 The variance of docvis far exceeds its mean, and
 # 3 The dispersion stat of (11.34) is much greater than 1,
-# it's not unwarranted to conclude that the model is truly overdispersed. The predictors all have p-values under 0.05 and thereby appear to significantly contributed to understanding (and predicting) docvis --- but they do not. The bias resulting from overdispersion means that p-values tell us nothing about the relationship of predictor to response. Remember this!!
+# It's not unwarranted to conclude that the model is truly overdispersed. The predictors all have p-values under 0.05 and thereby appear to significantly contributed to understanding (and predicting) docvis --- but they do not. The bias resulting from overdispersion means that p-values tell us nothing about the relationship of predictor to response. Remember this!!
 
 #### Interpreting Poisson model coefficients
 # The coefficient B_j in general is the change in the "log-count" of the response for a one-unit change in the predictor. Note for a binary predictor, this is from a change from 0 to 1. When a continuous predictor is centered, the reference is its mean value.
@@ -92,7 +96,7 @@ exp(coef(poi1))                             # IRR (Incidence Rate Ratios)
 # Note: Per calculated above, the IRR indicates the ratio for the rate counts between two ascending contiguous levels of the response. We interpret the IRRs:
 # 1 Out of work patients had 1.5 times more visits than patients who were working (age held constant)
 # 2 Patients visited a physician about 2.2% more often with each year older in age (if age is centered for each year difference form the mean age, there is about a 2.2% decrease of increase in the mean number of visits, outwork held constant)
-# 3 Probabilistically: out of work patients were 1.5 times mroe likely (or more probable) to visit a physician than working patients.
+# 3 Probabilistically: out of work patients were 1.5 times more likely (or more probable) to visit a physician than working patients.
 exp(coef(poi1)) * sqrt(diag(vcov(poi1)))    # delta method
 # Note: The standard errors are the square root of the diagonal terms of the inverse negative of the Hessian. This can be found by also taking the square root of the diagonal terms of the variance-covariance matrix of the model coefficients. Per above.
 
@@ -125,6 +129,7 @@ pr/fast$df.residual                         # Dispersion statistic
 # 2 Patients with history of having a CABG procedure are twice as likely to die than if they did not have a procedure
 # 3 Patients having a killip 2 status are 2.5 times as likely to die than if they have a killip level 1 status; having a killip 3 status are 3 times as likely to die and those at killip level 4 are 12 times more likely to die than those with no apparent heart problems
 # 4 Those at first the dispersion statistic of 1.4 may appear low, the added 40% dispersion may prepresent a lack of model fit. Note: After graphing fitted.values(fast) to residuals(fast) there appears to be one outlier (the 2nd and 10th observations):
+library(ggvis)
 foo = data.frame(cbind(fitted.values(fast),residuals(fast)))
 foo %>%
   ggvis(~X1, ~X2, fill:="red") %>%
@@ -134,7 +139,7 @@ foo %>%
 ## Prediction
 myglm = glm(docvis ~ outwork + age, family=poisson, data=rwm1984)
 summary(myglm)
-# Let's predict number of doc visits for a 50 year-old working patient (outwork = 0). Using the model's coefficients:
+# Let's predict number of doc visits for a 50 year-old working patient (outwork = 0, so no need to include coef * 0). Using the model's coefficients:
 working_pred = 50 * coef(myglm)[3] + coef(myglm)[1]  # remember - this gives you log(mu)
 exp(working_pred)
 # On basis of this model, we predict a working 50 year-old german will visit the doctor 3 times in 1984
@@ -167,14 +172,42 @@ dev = deviance(mymod)
 df = df.residual(mymod)
 p_value = 1 - pchisq(dev,df)
 p_value
-# Since the Chi2 p-value is less than 0.05, it indicates model is a good fit
-# This test statistic evaluates whether the vlaue of the deviance, for a specifi model size, is close enought to that of the saturated model that it cannot be rejected as fitting
+# If the resulting Chi2 p-value is less than 0.05, the model is considered well fit. Since the Chi2 p-value is less than 0.05, our model is a good fit
+# This test statistic evaluates whether the value of the deviance, for a specific model size, is close enough to that of the saturated model that it cannot be rejected as fitting
 
 # Calculate Dispersion Statistics and p-values
+mymod = glm(docvis ~ outwork + age, family=poisson, data=rwm1984)
 pr = sum(residuals(mymod, type="pearson")^2)    # Pearson Chi2
 pr/mymod$df.residual                            # Dispersion statistic
 pchisq(pr, mymod$df.residual, lower=F)          # Calculate p-value
 pchisq(mymod$deviance, mymod$df.residual,lower=F) # Previously calculated above differently
 
 # Function to calculate Pearson Chi2 and Dispersion Statistics
+# Though we don't use the Pearson Chi2 statistic for a GOF test (due to bias), we do use it in defining overdispersion - Poisson overdispersion
+# The Pearson Chi2 statistic is the squared residuals weighted (adjusted) by the model variance, and summed over all observations in the model
+P__disp = function(x) {
+  pr = sum(residuals(x, type="pearson")^2)
+  dispersion = pr/x$df.residual
+  pchisq(pr,x$df.residual, lower=F)
+  cat("\n Pearson Chi2 = ", pr ,
+      "\n Dispersion = ", dispersion, "\n")
+  
+}
 
+# Overdispersion in a Poisson model occurs when the variance of the response is greater than its' mean. In general, is the occasion when the observed variance in a model is greater than its expected variance
+# Primary causes: 1) positive correlation between responses 2) excess variation between response probabilities or counts 3) Violations in distribution assumptions
+# Why is overdispersion a problem: May cause standard errors of the estimates to be underestimated (i.e., a variable may appear to be signficant predictor when it is not)
+# What causes it: 1) model omits important explanatory variables 2) data includes outilers 3) model fails to included a needed interaction 4) predictor needs to be transformed 5) link function is misspecified
+# To REITERATE: just because the Poisson model predictors are all significant does not in iteself indicated the model is well fitted. Check the dispersion statistic!
+
+# Z-Score Test
+# This test is based on two assumptions 1) data set is large 2) z is t-distributed
+# The below example indicates the null hypothesis of no overdispersion is rejected (likely overdispersion is real)
+library(COUNT)
+data(rwm5yr)
+rwm1984 = subset(rwm5yr, year==1984)
+poi = glm(docvis ~ outwork + age, family=poisson, data=rwm1984)
+mu = predict(poi, type="response")
+z = ((rwm1984$docvis - mu)^2 - rwm1984$docvis)/(mu * sqrt(2))
+zscore = lm(z ~ 1)
+summary(zscore)
