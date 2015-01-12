@@ -18,6 +18,9 @@ ind2013 <-read.table("Industry/2013-00.txt", header=TRUE, sep="\t", stringsAsFac
 indsize2013 <- read.table("IndustryBySize/2013-00.txt", header=TRUE, sep="\t", stringsAsFactors = FALSE,strip.white = TRUE)
 led2013_01 <- read.table("LED/2013-01.txt", header=TRUE, sep="\t", stringsAsFactors = FALSE,strip.white = TRUE)
 bridges = read.csv("bridge_inspections.csv", header=TRUE, quote="", row.names=NULL, stringsAsFactors = FALSE,strip.white = TRUE)  # special parameters set for this file
+inc = read.table("income.txt",header=TRUE, sep="\t",stringsAsFactors = FALSE, strip.white = TRUE)
+labor = read.table("labforce.txt", header=TRUE, sep="\t", stringsAsFactors=FALSE, strip.white=TRUE)
+suicide = read.table("virginiaSuicideDataSet.csv", header=TRUE, sep=",", stringsAsFactors=FALSE, strip.white=TRUE)
 
 # If i want to read in multiple years (e.g., 3 years) read in the files
 file_list = list.files()
@@ -155,5 +158,30 @@ bridges %>%
   summarise(bridges = n()) %>%
   arrange(desc(bridges))
 
+############# Income Dataset ######################################################
+glimpse(inc)
+county_inc_pop = inc %>%
+  select(statename,areatyname,areaname,periodyear,income, population) %>%
+  filter(areatyname == "County" & statename == "Virginia" & (periodyear == 2006 | periodyear == 2007 | periodyear == 2008 | periodyear == 2009 | periodyear == 2009 | periodyear == 2010 | periodyear == 2011))
 
+write.csv(county_inc_pop, file = "county_inc_pop.csv", row.names=FALSE)
 
+############ Labor Force Dataset ##################################################
+glimpse(labor)
+county_labor = labor %>%
+  select(statename, areatyname, areaname, periodyear,pertypdesc, laborforce, unemp) %>%
+  filter(areatyname=="County" & statename=="Virginia" & pertypdesc=="Annual" & (periodyear==2006 | periodyear==2007 | periodyear==2008 | periodyear==2009 | periodyear==2010 | periodyear==2011))
+
+write.csv(county_labor,file="county_labor.csv", row.names=FALSE)
+
+############ Suicide Dataset ############################################
+# NoVA counties include: Fairfax, Frederick, Clarke, Loudoun, Shenandoah, Warren Rappahannock, Fauquier, Prince William, Rockingham, Greene, Page, Culpepper, Stafford, Madison
+table(suicides$suicides)
+suic = glm(suicides ~ income_med_house + divorces + factor(county), family="poisson", offset=log(pop_tot),data=suicide)
+summary(suic)
+pearson.disp <- sum(residuals(suic, type="pearson")^2); pearson.disp
+total.disp <- pearson.disp/df.residual(suic); total.disp   # total.disp is low for suic model
+table.suicide <-table(suicide$suicides); table.suicide
+mean.suicide <- mean(suicide$suicides); mean.suicide
+var.suicide <- var(suicide$suicides); var.suicide
+# NOTE: response mean is nowhere near the variance (Poisson questionable?)

@@ -110,6 +110,7 @@ exp(confint.default(poi1))                  # CI of IRR
 ## Modeling over Time, Area and Space
 data(fasttrakg)
 str(fasttrakg)
+glimpse(fasttrakg)
 # fastrtrakg data:
 # die = count of number of deaths (response)
 # anterior = did patient have a previous anterior infarction
@@ -158,7 +159,7 @@ summary(upci)
 layout(1); plot(eta, mu); lines(eta, loci, col=2, type='p');
 lines(eta,upci, col=3, type='p')
 
-##### Testing Overdispersion
+##### Testing Overdispersion ###############################################
 # Basics of Goodness-of-Fit
 # The Deviance GOF test is based on the view that the deviance is distributed as Chi2. Deviance is in effect a measure of the distance between the most full (saturated) model we can fit, and the proposed model we are testing for fit.
 # Using the German health data:
@@ -211,3 +212,44 @@ mu = predict(poi, type="response")
 z = ((rwm1984$docvis - mu)^2 - rwm1984$docvis)/(mu * sqrt(2))
 zscore = lm(z ~ 1)
 summary(zscore)
+
+#### Methods of Handling Overdispersion ###########################
+## Scaling Standard Errors: Quasi-Count Models
+# Process is:
+# 1 estimate model
+# 2 calculate pearson dispersion stat
+# 3 multiply SEs by sqrt(dispersion stat)
+# 4 iterate model again
+
+# Demonstrate the above manually and using R's quasipoisson option
+data(medpar)
+glimpse(medpar)
+poi = glm(los ~ hmo + white + factor(type), family=poisson, data=medpar)
+summary(poi)
+confint(poi)
+# profile confidence interval
+pr = sum(residuals(poi, type="pearson")^2)      # Pearson stat
+dispersion = pr/df.residual(poi) ; dispersion   # Dispersion stat
+sse = sqrt(diag(vcov(poi))) * sqrt(dispersion)  # Model SE = SE * sqrt(disp)
+# OR
+poiQL = glm(los ~ hmo + white + factor(type), family=quasipoisson, data=medpar)
+coef(poiQL); confint(poiQL)      # coeff and scaled SEs
+# IRRs can be produced by exponentiating the model coefficients and appropriately adjusting associated statistics
+exp(coef(poiQL))
+# Interpretation of IRRs: 
+# 1 HMO members have 7% few days in hospital holding other predictors at their mean
+# 2 White patients have 15% few days in hospital than nonwhites holding....
+# 3 Urgent admissions stay 25% longer than elective admissions holding....
+# 3 Emergency admissions stay twice as long as elective admissions holding...
+# NOTE: model parameters remain unaffected when SEs are scaled - confidence intervals are...
+modelfit(poi)
+
+## Quasi-Liklihood Models
+poiQL = glm(los ~ hmo + white + type2 + type3, family=poisson, data=medpar)
+summary(poiQL)
+pr = sum(residuals(poiQL,type="pearson")^2)
+disp = pr/poiQL$df.residual ;disp
+se = sqrt(diag(vcov(poiQL))) ; se
+QLse = se/sqrt(disp) ; QLse
+# ? How do i now recalculate the dispersion statistic?
+## Sanwich or Robust Variance Estimators
