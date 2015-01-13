@@ -158,6 +158,16 @@ bridges %>%
   summarise(bridges = n()) %>%
   arrange(desc(bridges))
 
+# Let's get Year.Built to a numeric value and subset without the NAs
+bridges$Year.Built.Numeric <- as.numeric(as.character(bridges$Year.Built))
+bridges_numeric_built <- subset(bridges,bridges$Year.Built.Numeric != "  NA")
+summary(bridges_numeric.built$Year.Built.Numeric)
+str(bridges_numeric.built)
+
+# Percentage of bridges eliminated by cleaning up non-numeric year.built data entries
+(nrow(bridges) - nrow(bridges_numeric_built))/nrow(bridges) * 100
+
+
 ############# Income Dataset ######################################################
 glimpse(inc)
 county_inc_pop = inc %>%
@@ -176,12 +186,39 @@ write.csv(county_labor,file="county_labor.csv", row.names=FALSE)
 
 ############ Suicide Dataset ############################################
 # NoVA counties include: Fairfax, Frederick, Clarke, Loudoun, Shenandoah, Warren Rappahannock, Fauquier, Prince William, Rockingham, Greene, Page, Culpepper, Stafford, Madison
-table(suicides$suicides)
+
+# Look at response variable:
+suic.cnt <- table(suicide$suicides)
+dataf.suic.cnt = data.frame(prop.table(table(suicide$suicides)))
+dataf.suic.cnt$cumulative = cumsum(dataf.suic.cnt$Freq)
+dataf.suic.all = data.frame(suic.cnt,dataf.suic.cnt$Freq*100, dataf.suic.cnt$cumulative * 100)
+dataf.suic.all
+
+mean(suicide$suicides)
+var(suicide$suicides)
+# From the plot below, we see there are about 6 outliers, suicides > 80
+suicide %>%
+  ggvis(~suicides, fill := "red") %>%
+  layer_histograms(width = 1)
+
+# Do outliers belong to a particular county? Yes:
+subset(suicide, suicides > 80)     # It's Fairfax
+
+# Let's look at some of the predictors
+# Counties:
+plot(suicide$pop_tot, ylab = "populations", xlab="observations", main="6 Year Groupings of County Populations")
+
+suicide %>%
+  ggvis(~pop_tot, ~ suicides, fill:= "red") %>% 
+  layer_points()
+
+
+subset(suicide, pop_tot > 190000)
+# Develop the Poisson model
 suic = glm(suicides ~ income_med_house + divorces + factor(county), family="poisson", offset=log(pop_tot),data=suicide)
 summary(suic)
 pearson.disp <- sum(residuals(suic, type="pearson")^2); pearson.disp
 total.disp <- pearson.disp/df.residual(suic); total.disp   # total.disp is low for suic model
-table.suicide <-table(suicide$suicides); table.suicide
-mean.suicide <- mean(suicide$suicides); mean.suicide
-var.suicide <- var(suicide$suicides); var.suicide
+
+
 # NOTE: response mean is nowhere near the variance (Poisson questionable?)
