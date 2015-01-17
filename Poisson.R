@@ -252,4 +252,45 @@ disp = pr/poiQL$df.residual ;disp
 se = sqrt(diag(vcov(poiQL))) ; se
 QLse = se/sqrt(disp) ; QLse
 # ? How do i now recalculate the dispersion statistic?
-## Sanwich or Robust Variance Estimators
+
+## Sandwich or Robust Variance Estimators
+# The foremost function is to adjust standard errors for data that are not independent
+library(sandwich)
+poi <- glm(los ~ hmo + white+factor(type), family=poisson, data=medpar)
+vcovHC(poi)
+# just for fun, compare the covaranceHC matrix with the standard covariance matrix
+vcov(poi)
+vcovHC(poi, type="const")
+### TO be cont'd --- need to get on with Assessment of Fit
+
+############ Assessment of Fit ##############################################
+# How are residuals analyzed for count data (differnt than other models)? 
+# What are we looking for in graphing residuals for count models?
+# 1 Evidence of poor fit
+# 2 Nonrandom patterns
+rwm <- glm(docvis ~ outwork + cage, family=poisson,data=rwm1984)
+summary(rwm)
+presid <- residuals(rwm, type="pearson")
+respon <- residuals(rwm,type="response")
+P__disp(rwm)
+mu <- predict(rwm)
+par(mfrow=c(1,2))
+plot(x=mu,y=respon, main="Response residuals")
+plot(x=mu, y=presid, main="Pearson residuals")
+
+############# Standard Likelihood Ratio Test ####################################
+# The likelihood ration drop1 test is useful in which one predictor at a time is dropped and the models are checked in turn for comparative goodness-of-fit.  In R, drop1 uses the deviance statistic rather than the log-likelihood as the basis for model comparison. But recall that the deviance is itself derived from the likelihood ratio.
+# The likelihood ratio test rejects the null hypothesis if the value of this statistic (p-value) is too small. In the lrtest below, the null hypothesis is rejected (models are equivalent), and age is determined to be a signficant variable
+
+ 
+library(COUNT); library(lmtest); data(rwm5yr)
+rwm1984 <- subset(rwm5yr, year==1984)
+poi1 <- glm(docvis ~ outwork + age, family=poisson, data=rwm1984)
+poi1a <- glm(docvis ~ outwork, family=poisson, data=rwm1984)
+lrtest(poi1,poi1a)
+# or below where we see that p-value of 2.2e-6 indicates that outwork and age are signficant predictors in the model
+drop1(poi1, test="Chisq")
+
+# Note: the drop1 test is used by many analysts as a substitute for standard likelihood ratio test
+
+
