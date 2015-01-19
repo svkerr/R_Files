@@ -214,9 +214,6 @@ dataf.suicide.all = data.frame(suicide.count,dataf.suicide.count$Freq*100, dataf
 dataf.suicide.all
 head(dataf.suicide.all)
 
-# Create a suicide per population ratio variable
-suicide$suicides.poptot <- suicide$suicides/suicide$pop_tot * 100
-suicide$unemp.percent <- suicide$pop_unemp/suicide$pop_labor * 100
 # Mean and variance of response variable
 suic.mean <- mean(suicide$suicides); suic.mean
 suic.var <- var(suicide$suicides); suic.var
@@ -232,13 +229,21 @@ suicide %>%
   ggvis(~suicides, fill := "red") %>%
   layer_histograms(width = 1)
 
+
 # Do outliers belong to a particular county? Yes:
 subset(suicide, suicides > 80)     # It's Fairfax
 
 # Let's create some additional variables:
-suicide$percent_unemp <- suicide$pop_unemp/suicide$pop_labor * 100
-suicide$percent_divorces <- suicide$divorces/suicide$pop_labor * 100
+suicide$divorce.percent <- suicide$divorces/suicide$pop_labor * 100   # Divorce rate
+suicide$unemp.percent <- suicide$pop_unemp/suicide$pop_labor * 100; suicide$unemp.percent  # Unemployment rate
 
+suicide %>%
+  select(unemp.percent > 0.03) %>%
+  ggvis(~unemp.percent, ~suicides.poptot, fill:="red") %>%
+  layer_points()
+
+p = ggplot(suicide,aes(unemp.percent > 0.03,suicides.poptot,colour=factor(county))) + geom_point()
+p
 # Let's look at some of the predictors
 # Counties:
 plot(suicide$pop_tot, ylab = "populations", xlab="observations", main="6 Year Groupings of County Populations")
@@ -309,7 +314,7 @@ par(mfrow=c(1,2))
 plot(x=mu,y=respon, main="Response residuals")
 plot(x=mu, y=presid, main="Pearson residuals")
 
-suicmod2 = glm(suicides ~ pop_unemp + divorces, family="poisson", offset=log(pop_labor), data=suicide)
+suicmod2 = glm(suicides ~ pop_unemp + divorces + income_med_house, family="poisson", offset=log(pop_labor), data=suicide)
 summary(suicmod2)
 pearson.disp <- sum(residuals(suicmod2, type="pearson")^2); pearson.disp
 total.disp <- pearson.disp/df.residual(suicmod2); total.disp   # total.disp is low for suic model
@@ -321,3 +326,5 @@ mu <- predict(suicmod2)
 par(mfrow=c(1,2))
 plot(x=mu,y=respon, main="Response residuals")
 plot(x=mu, y=presid, main="Pearson residuals")
+
+drop1(suicmod2, test="Chisq")
