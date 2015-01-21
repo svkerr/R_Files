@@ -197,6 +197,15 @@ sfpd$hrmin = hm(sfpd$time)
 qplot(hour(sfpd$hrmin), data=sfpd, main="SF Crimes by Hour of Day", binwidth=1,xlab="Hour",xlim=c(0,23),geom="histogram")
 qplot(minute(sfpd$hrmin), data=sfpd, main="SF Crimes by Minute of Recorded Hour", binwidth=1,xlab="Minute",xlim=c(0,59),geom="histogram")
 
+###### test of prototype red_oct algorithm - use of mutate with conditional statements ####
+sfpd$hour <- hour(sfpd$hrmin)
+
+sfpd_new <- sfpd %>%
+  mutate(v5 = ifelse(hour==16 & (dayofweek=="saturday" | dayofweek=="monday"), 1, ifelse(hour == 22 & (dayofweek=="friday" | dayofweek=="wednesday"), 0, 5)))
+
+
+
+#################################
 ####### Since "larceny/theft" is most frequent crime, let's create a separate DF for that category #######
 sfpd_lar = subset(sfpd, category=="larceny/theft")
 

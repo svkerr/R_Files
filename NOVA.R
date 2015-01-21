@@ -214,12 +214,22 @@ dataf.suicide.all = data.frame(suicide.count,dataf.suicide.count$Freq*100, dataf
 dataf.suicide.all
 head(dataf.suicide.all)
 
+###  Let's create some additional variables and dataframes:
+suicide$divorce.percent <- suicide$divorces/suicide$pop_labor * 100   # Divorce rate
+suicide$unemp.percent <- suicide$pop_unemp/suicide$pop_labor * 100  # Unemployment rate
+suicide_nofax <- subset(suicide, county!="fairfax")
+
 # Mean and variance of response variable
 suic.mean <- mean(suicide$suicides); suic.mean
 suic.var <- var(suicide$suicides); suic.var
 
+# Note: by excluding Fairfax, the variance is reduced by an order of magnitude
+suic.mean.nofax <- mean(suicide_nofax$suicides); suic.mean.nofax
+suic.var.nofax <- var(suicide_nofax$suicides); suic.var.nofax
+
 # Assume a Poisson distribution, what would be the percentage/probability of zero suicides:
 (exp(-suic.mean) * suic.mean^0)/factorial(0) * 100
+(exp(-suic.mean.nofax) * suic.mean.nofax^0)/factorial(0) * 100
 
 # We expect less than 1% of 0-count suicides versus the observed value of 6.3%
 # Thus a Poisson model would be overdispersed. We also see that by comparing the population mean and variance (should be nearly equal)
@@ -229,13 +239,17 @@ suicide %>%
   ggvis(~suicides, fill := "red") %>%
   layer_histograms(width = 1)
 
+ggplot(suicide, aes(x=suicides)) +
+  geom_histogram(binwidth=1, fill="red", colour="black") + 
+  labs(x = "Suicides (binwidth = 1)", y = "County County", title = "Distribution of Virginia Suicides") + 
+  scale_x_continuous(limits=c(0,110))
+
+ggplot(suicide, aes(x=county,y=suicides)) + geom_boxplot()
 
 # Do outliers belong to a particular county? Yes:
 subset(suicide, suicides > 80)     # It's Fairfax
 
-# Let's create some additional variables:
-suicide$divorce.percent <- suicide$divorces/suicide$pop_labor * 100   # Divorce rate
-suicide$unemp.percent <- suicide$pop_unemp/suicide$pop_labor * 100; suicide$unemp.percent  # Unemployment rate
+
 
 suicide %>%
   select(unemp.percent > 0.03) %>%
@@ -244,16 +258,33 @@ suicide %>%
 
 p = ggplot(suicide,aes(unemp.percent > 0.03,suicides.poptot,colour=factor(county))) + geom_point()
 p
+
 # Let's look at some of the predictors
 # Counties:
 plot(suicide$pop_tot, ylab = "populations", xlab="observations", main="6 Year Groupings of County Populations")
+
+ggplot(suicide, aes(x=pop_tot)) + 
+  geom_histogram(binwidth=20000, fill="red", colour="black") +
+  labs(x="Total Population", y="County Count", title = "Distribution of County Populations")
+
+ggplot(suicide_nofax, aes(x=pop_tot)) + 
+  geom_histogram(binwidth=5000, fill="red", colour="black") +
+  xlab("Total Population") + ylab("County Count") + 
+  title("County Population Distribution")
+
+suicide %>%
+  filter(pop_tot < 100000) %>%
+  distinct(county)
 
 suicide %>%
   ggvis(~divorces, fill:="red") %>%
   layer_histograms(width = 10)
 
+ggplot(suicide, aes(x=divorces)) + 
+  geom_histogram(binwidth=20, fill="red", colour="black")
+
 suicide %>%
-  ggvis(~percent_divorces, fill:="red") %>%
+  ggvis(~divorce.percent, fill:="red") %>%
   layer_histograms(width = 0.1)
 
 suicide %>%
