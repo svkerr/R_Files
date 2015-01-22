@@ -228,8 +228,8 @@ suic.mean.nofax <- mean(suicide_nofax$suicides); suic.mean.nofax
 suic.var.nofax <- var(suicide_nofax$suicides); suic.var.nofax
 
 # Assume a Poisson distribution, what would be the percentage/probability of zero suicides:
-(exp(-suic.mean) * suic.mean^0)/factorial(0) * 100
-(exp(-suic.mean.nofax) * suic.mean.nofax^0)/factorial(0) * 100
+(exp(-suic.mean) * suic.mean^0)/factorial(0) * nrow(suicide)
+(exp(-suic.mean.nofax) * suic.mean.nofax^0)/factorial(0) * nrow(suicide_nofax)
 
 # We expect less than 1% of 0-count suicides versus the observed value of 6.3%
 # Thus a Poisson model would be overdispersed. We also see that by comparing the population mean and variance (should be nearly equal)
@@ -273,8 +273,9 @@ ggplot(suicide_nofax, aes(x=pop_tot)) +
   title("County Population Distribution")
 
 suicide %>%
-  filter(pop_tot < 100000) %>%
-  distinct(county)
+  select(county, year, pop_tot) %>%
+  filter(pop_tot > 150000 & year==2011) %>%
+  arrange(desc(pop_tot,desc))
 
 suicide %>%
   ggvis(~divorces, fill:="red") %>%
@@ -286,6 +287,10 @@ ggplot(suicide, aes(x=divorces)) +
 suicide %>%
   ggvis(~divorce.percent, fill:="red") %>%
   layer_histograms(width = 0.1)
+
+suicide %>%
+  ggvis(~unemp.percent, fill:="red") %>%
+  layer_histograms(width = 0.5)
 
 suicide %>%
   ggvis(~income_med_house, fill:="red") %>%
@@ -310,6 +315,7 @@ suicide %>%
   ggvis(~percent_unemp, ~ percent_divorces, fill:= "red") %>% 
   layer_points() %>%
   layer_smooths()
+
 ## NOTE: We should include an interaction between unemployment and divorce in statistical model
 
 suicide %>%
@@ -322,6 +328,16 @@ suicide %>%
   layer_points() %>%
   layer_smooths()
 
+# Surprising result here, as divorce.percent goes up, suicides go down (slightly)
+suicide_nofax %>%
+  ggvis(~divorce.percent, ~suicides, fill:= "red") %>% 
+  layer_points() %>%
+  layer_model_predictions(model = "lm")
+
+ggplot(suicide, aes(x=divorce.percent, y=suicides), colour="red") + 
+  geom_point(colour="red", size=3) +
+  labs(x="Percent of Divorced Labor Population", y="Suicides", title = "Suicides vs Divorce Percentage")
+
 suicide %>%
   filter(pop_tot < 150000) %>%
   filter(suicides < 20) %>%
@@ -333,7 +349,7 @@ suicide %>%
 subset(suicide, pop_tot > 190000)
 
 # Develop the Poisson model
-suicmod1 = glm(suicides ~ income_med_house + divorces + factor(county), family="poisson", offset=log(pop_labor),data=suicide)
+suicmod1 = glm(suicides ~ income_med_house + divorces + pop_unemp + pop_tot + factor(county), family="poisson", offset=log(pop_tot), data=suicide)
 summary(suicmod1)
 pearson.disp <- sum(residuals(suicmod1, type="pearson")^2); pearson.disp
 total.disp <- pearson.disp/df.residual(suicmod1); total.disp   # total.disp is low for suic model
@@ -342,8 +358,14 @@ respon <- residuals(suicmod1,type="response")
 P__disp(suicmod1)
 mu <- predict(suicmod1)
 par(mfrow=c(1,2))
-plot(x=mu,y=respon, main="Response residuals")
-plot(x=mu, y=presid, main="Pearson residuals")
+
+ggplot(suicide, aes(x=mu, y=respon)) + 
+  geom_point(shape=1, colour="red") +
+  labs(x="Predicted value (mu)", y="Response Residual", title = "Response Residual Plot")
+
+ggplot(suicide, aes(x=mu, y=presid)) + 
+  geom_point(shape=1, colour="red") +
+  labs(x="Predicted value (mu)", y="Pearson Residual", title = "Pearson Residual Plot")
 
 suicmod2 = glm(suicides ~ pop_unemp + divorces + income_med_house, family="poisson", offset=log(pop_labor), data=suicide)
 summary(suicmod2)
@@ -359,3 +381,22 @@ plot(x=mu,y=respon, main="Response residuals")
 plot(x=mu, y=presid, main="Pearson residuals")
 
 drop1(suicmod2, test="Chisq")
+
+suicmod3 = glm(suicides ~ pop_unemp + divorces + income_med_house, family="poisson", offset=log(pop_labor), data=suicide_nofax)
+summary(suicmod3)
+pearson.disp <- sum(residuals(suicmod3, type="pearson")^2); pearson.disp
+total.disp <- pearson.disp/df.residual(suicmod3); total.disp   # total.disp is low for suic model
+confint(suicmod3)
+exp(coef(suicmod3))
+
+
+##### Negative Binomial Model ##################
+# How does the NB Model differ from the Poisson Model. The mean is understood in the same manner as the Poisson mean, but the variance has a much wider scope than is allowed by the Poisson distribution. The negative binomial is a tw-parameter model, with mean mu and dispersion alpha parameters. The important takeaway is that the negative binomial (NB) allows us to model a greater variance in the data than the Poisson. Consequently, the NB model is most always used to estimate the parameters of overdispersed data. 
+
+# R users must be careful in how the understand the glm.nb dispersion parameters since it is the inverse of alpha
+# as a result, better to use the nbinomial function in the COUNT or msme packages. 
+
+
+
+
+

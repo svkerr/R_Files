@@ -1,0 +1,304 @@
+---
+title: "Virginia Suicide Analysis"
+author: "Stu Kerr"
+date: "January 13, 2015"
+output: html_document
+---
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+library(dplyr)
+library(ggvis)
+library(ggplot2)
+library(MASS)
+library(lubridate)
+
+setwd("/Users/stuart/DataSets/virginia/")
+suicide = read.table("virginiaSuicideDataSet.csv", header=TRUE, sep=",", stringsAsFactors=FALSE, strip.white=TRUE)
+suicide = tbl_df(suicide)
+```
+This is a statistical analysis and modeling of Virginia suicides from years 2006-2011. Though suicides are often studied from the perspective of individual characteristics (e.g., depression, illness, family problems), this research is an attempt to identify more macro predictors (at a county level) of suicide within the state of Virginia. Data was gathered and integrated from portions of four separate datasets. They include:
+
+* [Virginia Commonwealth University, School of Mass Communications](http://capitalnews.vcu.edu/2013/05/08/suicide-rates-by-county-and-city/) 
+    + Suicide counts
+* [Virginia Department of Health](http://www.vdh.virginia.gov/healthstats/stats.htm)
+    + Divorce counts
+* [Virginia Labor Market Information](https://data.virginialmi.com/analyzer/default.asp?fromaltentry=1)
+    + Population data
+    + Employment data
+
+The goal of this analysis is to statistically model suicides within the state of Virginia and describe potential relationships that may exist between suicides and predictor variables. 
+
+Statistical modeling and analysis includes the following steps, and serve as the outline for this paper:
+
+* Identify and describe the response data
+* Identify and describe the predictor variables and look for basic relationships.
+* Select a probability distribution, or mixture of distributions. 
+* Model the data. Calculate unbiased estimates of the parameter(s) of the distribution function. Include what you believe are relevant predictors.
+* Assess differences between estimated (fitted) values and actual values
+* Evaluate fit test statistics; and compare with other models of the same data.
+
+### Identify and Describe the Response Variable and Data
+
+The response variable in our analysis is suicide counts from the years 2006-2011. Our data set includes suicide counts for each Virginia county. This allows us to potentially use counties as a predictor (categorical) variable; where a total of 95 Virginia counties comprise the data set. 
+
+Key questions regarding suicide counts include:
+
+1. How is the response variable (suicide counts) distributed?
+2. What type of values characterize the response variable?
+
+The figure below illustrates the distribution of Virginia suicides. Two immediate observations include the distribution's shape, and the 6 outliers. We note the six outliers because depending upon the distribution we select to model the data, these outliers will likely influence the model and will need consideration.
+
+```{r,echo=FALSE,message=FALSE}
+ggplot(suicide, aes(x=suicides)) +
+  geom_histogram(binwidth=1, fill="red", colour="black") + 
+  labs(x = "Suicides (binwidth = 1)", y = "County Count", title = "Distribution of Virginia Suicides") + 
+  scale_x_continuous(limits=c(0,110))
+```
+
+Let's calculate some basic grouping and variance statistics of suicide response variable:
+
+Mean: `r mean(suicide$suicides)`
+
+Median: `r median(suicide$suicides)`
+
+Variance: `r var(suicide$suicides)`
+
+Clearly, outliers are having an effect, as the mean is pulled higher away from the median. This will likely be a factor when modeling and assessing goodness-of-fit tests. For now, we'll retain the data, but let's take a look at these outliers. From the data below, all outliers comprise the entire 6-year data set for Fairfax county.  
+
+```{r, echo=FALSE, message=FALSE}
+subset(suicide,suicides > 80, select=c(county,year,suicides))
+```
+
+### Identify and describe the predictor variables and look for patterns
+
+The collection of predictor variable data were influenced by two primary issues:
+
+* Limited schedule and time to research data
+* Availability of relevant open and online data
+
+We have encountered significance variance in how Federal, State and local (major metropolitan areas) collect and manage data; and make it available for geenral consumption and analysis. Some major metropoitan areas (e.g, San Francisco and Chicago) excel at this, while others, with similar resources, lack focus. Virginia falls somewhere within that spectrum. As a result, not all predictors and predictor fidelity that we were thinking of were either readily available, or were not collected. What follows is a predictor variable listing, along with several entries identifying their type and value subsets:
+
+```{r, echo=FALSE, message=FALSE}
+glimpse(suicide)
+```
+Our predictors include:
+
+1. county: all 95 counties are represented
+2. year: 2006-2011
+3. income\_med\_house: Household median income per a given county in a given year
+4. pop\_tot: County population in a given year
+5. pop\_labor: County labor population in a given year 
+6. pop\_unemp: County unemployed population in a given year
+7. divorces: County divorce count in a given year
+
+The total number of observations in our dataset is: `r nrow(suicide)`
+
+We examine the distributions and descriptive statistics of some predictors:
+
+Below is the Virginia divorce distribution for years 2006-2011. 
+
+```{r, echo=FALSE, message=FALSE}
+ggplot(suicide, aes(x=divorces)) +
+  geom_histogram(binwidth=20, fill="red", colour="black") + 
+  labs(x = "Divorces (binwidth = 20)", y = "Divorce Count", title = "Distribution of Virginia Divorces") 
+```
+
+Below is the median household income distribution.
+
+```{r, echo=FALSE, message=FALSE}
+ggplot(suicide, aes(x=income_med_house)) +
+  geom_histogram(binwidth=1000, fill="red", colour="black") + 
+  labs(x = "Median Household Income (binwidth = 1000)", y =  "County Count", title = "Distribution of Median Household Income") 
+```
+
+Lastly, we plot the total county population distribution (bin width = 10000)
+
+```{r, echo=FALSE, message=FALSE}
+ggplot(suicide, aes(x=pop_tot)) +
+  geom_histogram(binwidth=10000, fill="red", colour="black") + 
+  labs(x = "Total County Population (binwidth = 10000)", y =  "County Count", title = "Distribution of County Populations") 
+```
+
+From the population distribution above, Virginia is basically a rural state, where in 2011, only 6 counties had populations exceeding 150,000 and only one county (Fairfax) exceeds 1,000,000. In fact, the population difference in 2011 between Fairfax and the next most populous county is greater than 600,000 residents:
+
+```{r, echo=FALSE, message=FALSE}
+subset(suicide, year==2011 & pop_tot > 150000, select=c(county,year,pop_tot))
+```
+
+To further describe our predictors and possible impacts, we create a few more variables based upon percentages in terms of labor population. We calculate the unemployment and divorce rates in relation to the labor force population. The labor force population is selected instead of total population since the latter includes ages starting from infants.
+
+* unemp.percent = pop_unemp/pop_labor
+* divorce.percent = divorces/pop_labor
+
+```{r, echo=FALSE, results="hide",message=FALSE}
+suicide$divorce.percent <- suicide$divorces/suicide$pop_labor * 100   # Divorce rate
+suicide$unemp.percent <- suicide$pop_unemp/suicide$pop_labor * 100; suicide$unemp.percent  # Unemployment rate
+```
+
+Below is the Virginia unemployment rate distribution. What is interesting is that there exist two counties whose divorce rate is near or exceeds two-percent of their working populations, which have less than 20,000 residents. They are:
+
+```{r, echo=FALSE, message=FALSE}
+subset(suicide, divorce.percent > 1.9, select=c(county,year,pop_tot, pop_unemp, divorces, divorce.percent))
+```
+  
+```{r, echo=FALSE, message=FALSE}
+ggplot(suicide, aes(x=divorce.percent)) +
+  geom_histogram(binwidth=0.1, fill="red", colour="black") + 
+  labs(x = "Divorce Rate (binwidth = 0.1)", y =  "Divorce Count", title = "Distribution of County Divorces") 
+```
+
+Lastly, we plot the unemployment rate distribution. Clearly, there were years where some counties experienced significantly high unemployment.
+
+```{r, echo=FALSE, message=FALSE}
+ggplot(suicide, aes(x=unemp.percent)) +
+  geom_histogram(binwidth=0.5, fill="red", colour="black") + 
+  labs(x = "Unemployment Rate (binwidth = 0.5)", y =  "Unemployment Count", title = "Distribution of County Unemployment") 
+```
+
+### Select a Model and Probability Distribution 
+
+The suicide response values consist of non-negative integers, including zero, thus leading us to use the general family of "count" models. There are several texts and online resources that provide excellent explanations of count models, so detailed theory (e.g., Maximum Likelihood Estimation) and derivations will not be included in this writeup. A few references will be included at the end of this file. 
+
+The two basic count models used in this analysis (Poisson and Negative Binomial) follow the structure of a linear model, where the only difference is the expected value (left) side of the equation:
+
+$$
+\begin{aligned}
+\log(\mu) = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + ... + \beta_p X_p = \sum_{i=0}^{p}\beta_i X_i
+\end{aligned}
+$$
+
+Where $\log(\mu)$ is taken to be the natural logarithm and not base 10, and is often called the "link" function to the linear model. Using the natural log as the link function ensures that the predicted values will be positive: $(\log(\mu) > 0)$, unlike a pure linear model. 
+
+To calculate the predicted mean, we exponentiate both sides:
+
+$$
+\begin{aligned}
+\mu = e^{(\beta_0 + \beta_1 X_1 + \beta_2 X_2 + ... + \beta_p X_p)}
+\end{aligned}
+$$
+
+Where we note the non-linear relationship between $\mu$ and the predictors. 
+
+When we are selecting an appropriate count model, we are really selecting a probability distribution (or mixture) that most appropriately describes the data set being modeled.  The probability functions that we use here are the Poisson and Negative Binomial probability functions. Because real data rarely ever comes in a form exactly replicating the selected model probability distributions, we will apply various techniques to assess the goodness-of-fit and adjust and be aware of our confidence intervals. 
+
+ 
+#### Poisson Regression:
+
+A random variable $Y$ is said to have a Poisson distribution with parameter $\mu$ if it takes interger values $y = 0,1,2,...$ with probability:
+
+$$
+\begin{aligned}
+Pr(Y = y) = \frac{e^{-\mu} \mu^{-y}}{y!}
+\end{aligned}
+$$
+
+Where it can be shown:
+
+$$
+\begin{aligned}
+E(Y) = Var(Y) = \mu
+\end{aligned}
+$$
+
+
+The poisson model has some seemingly restrictive assumptions that are often violated using real data sets (Hilbe). We'll list a few of the important ones and test how much we violate these with our data set and try to adjust in order to minimize the impacts. Some assumptions include:
+
+1. The distribution contains a single parameter $\mu$ often called the rate parameter that is the expected number of times that an event (e.g., suicides) occurs per unit of time, area, or volume. 
+2. Response variable is non-negative and can include zero
+3. Observations are independent of each other
+4. The mean and variance of the model are equivalent, or nearly equivalent
+5. The Pearson Chi2 dispersion statistic has a value that is approximately 1.0
+  
+We will focus on assumptions 4 and 5. 
+
+Recall our calculations for the suicide's mean and variance for the entire data set and the note that this would likely have an analysis impact. Here we are. Already we're in violation of a key Poisson modeling assumption:
+
+Mean: `r mean(suicide$suicides)`
+
+Variance: `r var(suicide$suicides)`
+
+The above would indicate that a key Poisson assumption is violated. To show the potential impact, let's calculate the expected number of suicide "zero" counts using the Poisson distribution and compare that with the number of observed values.
+
+```{r, echo=FALSE, message=FALSE}
+suic.mean <- mean(suicide$suicides)
+expected_zeros <- (exp(-suic.mean) * suic.mean^0)/factorial(0) * nrow(suicide)
+observed_zeros <- nrow(subset(suicide, suicides ==0))
+```
+Expected number of zero count suicides: `r expected_zeros`
+
+Observed number of zero count suicides: `r observed_zeros`
+
+Our initial model expects to have a total of 1 zero-suicide count, versus the observed count of 36. What do we do? We'll try a few things. One is that we'll make no adjustments and continue the analysis, while checking for other indicators indicating how "off" the model may be on an overall scale. Second is that we'll remove the offending county (Fairfax) from the data set, potentially reducing the data variance and redo the modeling. Third, we'll employ another model (Negative Binomial) that adapts to larger variances.
+
+#### Poisson Regression with Fairfax County Included
+Recall the the Poisson distribution consists of a single parameter $\mu$ that is referred to as a rate parameter. This is true only when considering that an additional coefficient (call it t) is considered constant. The "rate" can be with respect to a given number of counts per time period, area or volume. We will have to adjust for suicide counts over a give total county population. This is referred to as a "proportional intensity model" (Hilbe). When employing a non-constant coefficient as part of the Poisson model, we account for it as an "offset"" $\log(t)$ to the regression algorithm. In R when displaying model summaries, inclusion of this offset can be seen in the model description as "offset = log(offset_variable)." How the offset variable is included in the model is described via equations below:
+
+$$
+\begin{aligned}
+\log(\frac{\mu}{t}) = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + ... + \beta_p X_p = \sum_{i=0}^{p}\beta_i X_i
+\end{aligned}
+$$
+
+rewriting:
+
+$$
+\begin{aligned}
+\mu = e^{(x\beta + \log(t))} 
+\end{aligned}
+$$
+
+Let's proceed with our Poisson regression including, where the model and summary information 
+
+```{r, echo=FALSE, message=FALSE}
+suicmod1 = glm(suicides ~ income_med_house + divorces + pop_unemp + pop_tot + factor(county), family="poisson", offset=log(pop_tot), data=suicide)
+summary(suicmod1)
+```
+
+Before looking at the above regression coefficients, we begin analyzing the above poisson regression model by calculating two dispersion statistics. The first is the Pearson Statistic which is the sum of squared Pearson residuals. This is used to calculate the Total Dispersion statistic. Total Dispersion for Poisson regression models should be close to 1.0. A value of 1.0 means that the predicted values ($\mu$) match exactly the observed values. Here, the total dispersion is 1.024 (2.4% dispersion in data set), which is low given the small number of `r nrow(suicide)` observations.
+
+Pearson Statistic: `r pearson.disp <- sum(residuals(suicmod1, type="pearson")^2); pearson.disp `
+
+Total Dispersion: `r total.disp <- pearson.disp/df.residual(suicmod1); total.disp `
+
+```{r, echo=FALSE, message=FALSE}
+presid <- residuals(suicmod1, type="pearson")
+respon <- residuals(suicmod1,type="response")
+```
+
+```{r, echo=FALSE, message=FALSE}
+mu <- predict(suicmod1)
+```
+
+```{r, echo=FALSE, message=FALSE}
+ggplot(suicide, aes(x=mu, y=respon)) + 
+  geom_point(shape=1, colour="red") +
+  labs(x="Predicted value (mu)", y="Response Residual", title = "Response Residual Plot")
+```
+
+```{r, echo=FALSE, message=FALSE}
+
+ggplot(suicide, aes(x=mu, y=presid)) + 
+  geom_point(shape=1, colour="red") +
+  labs(x="Predicted value (mu)", y="Pearson Residual", title = "Pearson Residual Plot")
+
+```
+
+#### Poisson Regression with Fairfax County Removed
+
+#### Negative Binomial (NB) Regression
+
+How does the NB Model differ from the Poisson Model? Again, we will not discuss the NB derivation via the Maximum Likelihood formulas as there are numerous outside references, but we will outline some differences between the Poisson and NB models. The NB mean is treated in the same manner as the Poisson mean, but the variance does not have the same constraints (i.e., equivalent to the mean) of the Poisson distribution. The negative binomial is a two-parameter model, with mean mu and dispersion $\alpha$ parameters. The $\alpha$ dispersion parameter is inserted into the model as a constant, following its' calculation via a subroutine outside the regression algorithm, where if $\alpha$ tends to zero, the model is Poisson. The important takeaway is that the NB allows us to model a greater variance in the data than the Poisson. Consequently, the NB model is most always used to estimate the parameters of overdispersed data. 
+
+There are various forms of the NB. We will use the model where the variance function is given as:
+$$
+\begin{aligned}
+variance = \mu(1 + \alpha \mu) 
+\end{aligned}
+$$
+
+
+### Assess Differences Between Estimated and Actual Values
+
+### Calculate Unbiased Estimates of the Parameter(s)
+
+
+
