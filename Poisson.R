@@ -93,6 +93,14 @@ pr = sum(residuals(poi1,type="pearson")^2)  # Pearson Chi2
 pr/poi1$df.residual                         # Dispersion statistic
 poi1$aic/(poi1$df.null + 1)                 # AIC/n
 exp(coef(poi1))                             # IRR (Incidence Rate Ratios)
+xbp <- predict(poi1)                        # xb, linear predictor
+mup <- exp(xbp)                             # mu, fitted Poisson
+mean(mup)                                   # expected variance, mean equals variance
+
+# Table of observed versus expected counts:
+foo <- rbind(seq(from=0,to=17),obs=table(rwm1984$docvis)[1:18], exp = round(sapply(0:17, function(x)sum(dpois(x,fitted(poi1))))))
+
+
 # Note: Per calculated above, the IRR indicates the ratio for the rate counts between two ascending contiguous levels of the response. We interpret the IRRs:
 # 1 Out of work patients had 1.5 times more visits than patients who were working (age held constant)
 # 2 Patients visited a physician about 2.2% more often with each year older in age (if age is centered for each year difference form the mean age, there is about a 2.2% decrease of increase in the mean number of visits, outwork held constant)

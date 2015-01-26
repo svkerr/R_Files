@@ -240,7 +240,7 @@ suicide %>%
   layer_histograms(width = 1)
 
 ggplot(suicide, aes(x=suicides)) +
-  geom_histogram(binwidth=1, fill="red", colour="black") + 
+  geom_histogram(binwidth=2, fill="red", colour="black") + 
   labs(x = "Suicides (binwidth = 1)", y = "County County", title = "Distribution of Virginia Suicides") + 
   scale_x_continuous(limits=c(0,110))
 
@@ -248,8 +248,6 @@ ggplot(suicide, aes(x=county,y=suicides)) + geom_boxplot()
 
 # Do outliers belong to a particular county? Yes:
 subset(suicide, suicides > 80)     # It's Fairfax
-
-
 
 suicide %>%
   select(unemp.percent > 0.03) %>%
@@ -345,7 +343,6 @@ suicide %>%
   layer_points() %>%
   layer_smooths()
 
-
 subset(suicide, pop_tot > 190000)
 
 # Develop the Poisson model
@@ -353,13 +350,36 @@ suicmod1 = glm(suicides ~ income_med_house + divorces + pop_unemp + pop_tot + fa
 summary(suicmod1)
 pearson.disp <- sum(residuals(suicmod1, type="pearson")^2); pearson.disp
 total.disp <- pearson.disp/df.residual(suicmod1); total.disp   # total.disp is low for suic model
+exp_df <- exp(coefficients(suicmod1)); exp_df
 presid <- residuals(suicmod1, type="pearson")
 respon <- residuals(suicmod1,type="response")
 P__disp(suicmod1)
 mu <- predict(suicmod1)
 par(mfrow=c(1,2))
 
+# The Deviance GOF test is based on the view that the deviance is distributed as Chi2. Deviance is in effect a measure of the distance between the most full (saturated) model we can fit, and the proposed model we are testing for fit. Or more succinctly, the difference between a saturate log-likelihood and the log-likelihood full model:
+
+
+# If the resulting Chi2 p-value is less than 0.05, the model is considered well fit. Since the Chi2 p-value is less than 0.05, our model is a good fit
+# This test statistic evaluates whether the value of the deviance, for a specific model size, is close enough to that of the saturated model that it cannot be rejected as fitting
+
+dev = deviance(suicmod1)
+df = df.residual(suicmod1)
+p_value = 1 - pchisq(dev,df)
+p_value
+
+# Since we found the following 4 counties are significant, let's look at them
+subset(suicide, (county=='dickenson' | county=='carroll' | county=='buchanan' | county=='henry') & year==2011, select=c(county,year,pop_tot,pop_labor,divorce.percent,unemp.percent))
+
+
 ggplot(suicide, aes(x=mu, y=respon)) + 
+  geom_point(shape=1, colour="red") +
+  labs(x="Predicted value (mu)", y="Response Residual", title = "Response Residual Plot")
+
+foo <- predict(suicmod1,type="response")
+errors <- suicide$suicides - foo
+
+ggplot(suicide, aes(x=foo, y=errors)) + 
   geom_point(shape=1, colour="red") +
   labs(x="Predicted value (mu)", y="Response Residual", title = "Response Residual Plot")
 
@@ -367,11 +387,16 @@ ggplot(suicide, aes(x=mu, y=presid)) +
   geom_point(shape=1, colour="red") +
   labs(x="Predicted value (mu)", y="Pearson Residual", title = "Pearson Residual Plot")
 
-suicmod2 = glm(suicides ~ pop_unemp + divorces + income_med_house, family="poisson", offset=log(pop_labor), data=suicide)
+suicmod2 = glm(suicides ~ pop_unemp + divorces + income_med_house, family="poisson", offset=log(pop_tot), data=suicide)
 summary(suicmod2)
 pearson.disp <- sum(residuals(suicmod2, type="pearson")^2); pearson.disp
 total.disp <- pearson.disp/df.residual(suicmod2); total.disp   # total.disp is low for suic model
 
+# Deviance GOF:
+dev = deviance(suicmod2)
+df = df.residual(suicmod2)
+p_value = 1 - pchisq(dev,df)
+p_value
 presid <- residuals(suicmod2, type="pearson")
 respon <- residuals(suicmod2,type="response")
 P__disp(suicmod2)
@@ -382,12 +407,41 @@ plot(x=mu, y=presid, main="Pearson residuals")
 
 drop1(suicmod2, test="Chisq")
 
-suicmod3 = glm(suicides ~ pop_unemp + divorces + income_med_house, family="poisson", offset=log(pop_labor), data=suicide_nofax)
+suicmod3 = glm(suicides ~ pop_unemp + pop_tot + divorces + income_med_house, family="poisson", offset=log(pop_tot), data=suicide_nofax)
 summary(suicmod3)
 pearson.disp <- sum(residuals(suicmod3, type="pearson")^2); pearson.disp
 total.disp <- pearson.disp/df.residual(suicmod3); total.disp   # total.disp is low for suic model
 confint(suicmod3)
 exp(coef(suicmod3))
+
+# Deviance GOF:
+dev = deviance(suicmod3)
+df = df.residual(suicmod3)
+p_value = 1 - pchisq(dev,df)
+p_value
+
+
+suicide_nofax <- subset(suicide, county!="fairfax")
+suicmod2 = glm(suicides ~ income_med_house + divorces + pop_unemp + factor(county) + pop_tot, family="poisson", offset=log(pop_tot), data=suicide_nofax)
+summary(suicmod2)
+
+
+pearson.disp2 <- sum(residuals(suicmod2, type="pearson")^2); pearson.disp2 
+total.disp2 <- pearson.disp2/df.residual(suicmod2); total.disp2 
+
+presid2 <- residuals(suicmod2, type="pearson")
+respon2 <- residuals(suicmod2,type="response")
+
+
+mu2 <- predict(suicmod2, type="response")  # calculate the predicted value on scale of response variable
+
+
+ggplot(suicide_nofax, aes(x=mu2, y=respon2)) + 
+  geom_point(shape=1, colour="red") +
+  labs(x="Predicted value (mu)", y="Raw Residual", title = "Raw Residual Plot sans Fairfax")
+
+
+
 
 
 ##### Negative Binomial Model ##################
@@ -395,8 +449,8 @@ exp(coef(suicmod3))
 
 # R users must be careful in how the understand the glm.nb dispersion parameters since it is the inverse of alpha
 # as a result, better to use the nbinomial function in the COUNT or msme packages. 
+suicmod4 <- glm.nb(suicides ~ income_med_house + divorces + pop_unemp + pop_tot, data=suicide, control=glm.control(maxit=100))
 
-
-
+summary(suicmod4)
 
 

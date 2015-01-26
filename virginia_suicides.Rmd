@@ -1,7 +1,7 @@
 ---
-title: "Virginia Suicide Analysis"
-author: "Stu Kerr"
-date: "January 13, 2015"
+title: "IRAD: NOVA - Virginia Suicide Analysis"
+author: "SVK"
+date: "January 23, 2015"
 output: html_document
 ---
 ```{r,echo=FALSE,message=FALSE, warning=FALSE}
@@ -15,7 +15,7 @@ setwd("/Users/stuart/DataSets/virginia/")
 suicide = read.table("virginiaSuicideDataSet.csv", header=TRUE, sep=",", stringsAsFactors=FALSE, strip.white=TRUE)
 suicide = tbl_df(suicide)
 ```
-This is a statistical analysis and modeling of Virginia suicides from years 2006-2011. Though suicides are often studied from the perspective of individual characteristics (e.g., depression, illness, family problems), this research is an attempt to identify more macro predictors (at a county level) of suicide within the state of Virginia. Data was gathered and integrated from portions of four separate datasets. They include:
+This is a statistical analysis and modeling of Virginia suicides from years 2006-2011. Though suicides are often studied from the perspective of individual characteristics (e.g., depression, illness, family problems), this research is an attempt to identify more macro predictors of suicides (at a county level) within the state of Virginia. Data was gathered and integrated from portions of four separate datasets. They include:
 
 * [Virginia Commonwealth University, School of Mass Communications](http://capitalnews.vcu.edu/2013/05/08/suicide-rates-by-county-and-city/) 
     + Suicide counts
@@ -49,8 +49,8 @@ The figure below illustrates the distribution of Virginia suicides. Two immediat
 
 ```{r,echo=FALSE,message=FALSE}
 ggplot(suicide, aes(x=suicides)) +
-  geom_histogram(binwidth=1, fill="red", colour="black") + 
-  labs(x = "Suicides (binwidth = 1)", y = "County Count", title = "Distribution of Virginia Suicides") + 
+  geom_histogram(binwidth=2, fill="red", colour="black") + 
+  labs(x = "Suicides (binwidth = 2)", y = "County Count", title = "Distribution of Virginia Suicides") + 
   scale_x_continuous(limits=c(0,110))
 ```
 
@@ -98,8 +98,8 @@ Below is the Virginia divorce distribution for years 2006-2011.
 
 ```{r, echo=FALSE, message=FALSE}
 ggplot(suicide, aes(x=divorces)) +
-  geom_histogram(binwidth=20, fill="red", colour="black") + 
-  labs(x = "Divorces (binwidth = 20)", y = "Divorce Count", title = "Distribution of Virginia Divorces") 
+  geom_histogram(binwidth=40, fill="red", colour="black") + 
+  labs(x = "Divorces (binwidth = 40)", y = "Divorce Count", title = "Distribution of Virginia Divorces") 
 ```
 
 Below is the median household income distribution.
@@ -156,9 +156,9 @@ ggplot(suicide, aes(x=unemp.percent)) +
 
 ### Select a Model and Probability Distribution 
 
-The suicide response values consist of non-negative integers, including zero, thus leading us to use the general family of "count" models. There are several texts and online resources that provide excellent explanations of count models, so detailed theory (e.g., Maximum Likelihood Estimation) and derivations will not be included in this writeup. A few references will be included at the end of this file. 
+The suicide response values consist of non-negative integers, including zero, thus leading us to use the general family of "count" models. There are several texts and online resources that provide excellent explanations of count models, so detailed theory (e.g., Maximum Likelihood Estimation) and derivations of these models will not be included in this writeup. A few references will be included at the end of this file. 
 
-The two basic count models used in this analysis (Poisson and Negative Binomial) follow the structure of a linear model, where the only difference is the expected value (left) side of the equation:
+The basic count models used in this analysis are the Poisson and Negative Binomial (NB) models, which follow the structure of a linear model, where the only difference is the expected value (left) side of the equation:
 
 $$
 \begin{aligned}
@@ -168,7 +168,7 @@ $$
 
 Where $\log(\mu)$ is taken to be the natural logarithm and not base 10, and is often called the "link" function to the linear model. Using the natural log as the link function ensures that the predicted values will be positive: $(\log(\mu) > 0)$, unlike a pure linear model. 
 
-To calculate the predicted mean, we exponentiate both sides:
+To calculate the predicted mean and assess the relationship between the predictors and response variable (suicides) we exponentiate both sides:
 
 $$
 \begin{aligned}
@@ -178,7 +178,7 @@ $$
 
 Where we note the non-linear relationship between $\mu$ and the predictors. 
 
-When we are selecting an appropriate count model, we are really selecting a probability distribution (or mixture) that most appropriately describes the data set being modeled.  The probability functions that we use here are the Poisson and Negative Binomial probability functions. Because real data rarely ever comes in a form exactly replicating the selected model probability distributions, we will apply various techniques to assess the goodness-of-fit and adjust and be aware of our confidence intervals. 
+When we are selecting an appropriate count model, we are really selecting a probability distribution (or mixture of distributions) that most appropriately describes the data set being modeled.  Again, the selected models are based on the Poisson and Negative Binomial probability functions. Because real data rarely ever comes in a form exactly replicating the selected probability distributions, we will apply various techniques to assess the goodness-of-fit, makde adjustments and be aware of our confidence intervals. 
 
  
 #### Poisson Regression:
@@ -200,7 +200,7 @@ E(Y) = Var(Y) = \mu
 $$
 
 
-The poisson model has some seemingly restrictive assumptions that are often violated using real data sets (Hilbe). We'll list a few of the important ones and test how much we violate these with our data set and try to adjust in order to minimize the impacts. Some assumptions include:
+The poisson model has some restrictive assumptions that are often violated using real data sets (Hilbe). We'll list a few of the important ones and test how much we violate these with our data set and try to adjust in order to minimize the impacts. Some assumptions include:
 
 1. The distribution contains a single parameter $\mu$ often called the rate parameter that is the expected number of times that an event (e.g., suicides) occurs per unit of time, area, or volume. 
 2. Response variable is non-negative and can include zero
@@ -210,7 +210,7 @@ The poisson model has some seemingly restrictive assumptions that are often viol
   
 We will focus on assumptions 4 and 5. 
 
-Recall our calculations for the suicide's mean and variance for the entire data set and the note that this would likely have an analysis impact. Here we are. Already we're in violation of a key Poisson modeling assumption:
+Recall our calculations for the observed suicide's mean and variance for the entire data set and the note that this would likely have an analysis impact. Already we're in violation of a key Poisson modeling assumption:
 
 Mean: `r mean(suicide$suicides)`
 
@@ -227,10 +227,10 @@ Expected number of zero count suicides: `r expected_zeros`
 
 Observed number of zero count suicides: `r observed_zeros`
 
-Our initial model expects to have a total of 1 zero-suicide count, versus the observed count of 36. What do we do? We'll try a few things. One is that we'll make no adjustments and continue the analysis, while checking for other indicators indicating how "off" the model may be on an overall scale. Second is that we'll remove the offending county (Fairfax) from the data set, potentially reducing the data variance and redo the modeling. Third, we'll employ another model (Negative Binomial) that adapts to larger variances.
+Our selected Poisson distribution expects to have a total of 1 zero-suicide count, versus the observed count of 36. What do we do? We'll try a few things. One is that we'll make no adjustments and continue the analysis, while checking for other indicators indicating how well, in general, the model fits. Second is that we'll create a second data set removing Fairfax County, potentially reducing the data variance and producing a better model fit. Third, we'll employ another model (Negative Binomial) that adapts to larger variances.
 
 #### Poisson Regression with Fairfax County Included
-Recall the the Poisson distribution consists of a single parameter $\mu$ that is referred to as a rate parameter. This is true only when considering that an additional coefficient (call it t) is considered constant. The "rate" can be with respect to a given number of counts per time period, area or volume. We will have to adjust for suicide counts over a give total county population. This is referred to as a "proportional intensity model" (Hilbe). When employing a non-constant coefficient as part of the Poisson model, we account for it as an "offset"" $\log(t)$ to the regression algorithm. In R when displaying model summaries, inclusion of this offset can be seen in the model description as "offset = log(offset_variable)." How the offset variable is included in the model is described via equations below:
+Recall the the Poisson distribution consists of a single parameter $\mu$ that is referred to as a rate parameter. This is true only when considering that an additional coefficient (call it t) is considered constant. The "rate" can be with respect to a given number of counts per time period, area or volume. We will have to adjust for suicide counts over a give total county population. This is referred to as a "proportional intensity model" (Hilbe). When employing a non-constant coefficient as part of the Poisson model, we account for it as an "offset", in this case $\log(t)$ to the regression algorithm. In R when displaying model summaries, inclusion of this offset can be seen in the model description as "offset = log(offset_variable)." How the offset variable is included in the model is described via equations below:
 
 $$
 \begin{aligned}
@@ -246,18 +246,59 @@ $$
 \end{aligned}
 $$
 
-Let's proceed with our Poisson regression including, where the model and summary information 
+Let's proceed with our Poisson regression including, where the model and summary information. Initially, we'll include all 95 counties in the model, along with median household income, divorces, umemployed population, and total population as predictors, offset by total population. 
 
 ```{r, echo=FALSE, message=FALSE}
 suicmod1 = glm(suicides ~ income_med_house + divorces + pop_unemp + pop_tot + factor(county), family="poisson", offset=log(pop_tot), data=suicide)
 summary(suicmod1)
 ```
 
-Before looking at the above regression coefficients, we begin analyzing the above poisson regression model by calculating two dispersion statistics. The first is the Pearson Statistic which is the sum of squared Pearson residuals. This is used to calculate the Total Dispersion statistic. Total Dispersion for Poisson regression models should be close to 1.0. A value of 1.0 means that the predicted values ($\mu$) match exactly the observed values. Here, the total dispersion is 1.024 (2.4% dispersion in data set), which is low given the small number of `r nrow(suicide)` observations.
+Before looking at the above regression coefficients, we begin our analysis by calculating two dispersion statistics. The first is the Pearson Statistic which is the sum of squared Pearson residuals. The Pearson residuals (versus raw) are preferred as they are scaled by the square root of the variance. Pearson residuals used to calculate the Total Dispersion statistic. Total Dispersion for Poisson regression models should be close to 1.0. A value of 1.0 means that the predicted values ($\mu_i$) match exactly the observed values (nearly impossible with real data). Total dispersion tells us how much a model is over or under dispersed and thus provides an indicator as to whether to trust the p-values (identifying whether a predictor is significant). Though one should pay less attention the p-values and more attention to the confidence intervals when modeling. This model's total dispersion is 1.024 (2.4% dispersion in data set), which is very low given the small number of `r nrow(suicide)` observations. Despite the mean and variance difference, this low dispersion statistic gives us more confidence in our modeling results. 
 
 Pearson Statistic: `r pearson.disp <- sum(residuals(suicmod1, type="pearson")^2); pearson.disp `
 
 Total Dispersion: `r total.disp <- pearson.disp/df.residual(suicmod1); total.disp `
+
+Given our confidence in the p-values, we identify counties of Buchanan, Carroll, Dickenson, and Henry as signficant. To calculate the relationship between these counties and the suicide counts, we exponentiate the model coefficients above (remember, these currently reflect the relationship to the $\log(\mu)$, and list the coefficients for these four counties:
+
+```{r, echo=FALSE, results="hide",message=FALSE}
+exp_df <- exp(coefficients(suicmod1))
+```
+```{r, echo=FALSE,message=FALSE}
+exp.sig <- c(exp_df[18], exp_df[22], exp_df[30], exp_df[48]); exp.sig
+```
+
+##### Interpretation of Results
+
+The interpretation of these values is that with all other predictors held constant, a person is 3 times more likely to  commit suicide by living in Dickenson County, 2.64 more likely to commit suicide by living in Henry County, and 2.58 and 2.45 more likely when living in Buchanan and Carroll county respectively.
+
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(maps)
+m <- map("county", "virginia", plot=FALSE)
+map.text('county','virginia', cex=0.4, mar = c(4.1, 4.1, par("mar")[3], 0.1))
+```
+
+As can be seen on the Virginia county map above, geographically, these counties lie on the southwestern border of Virginia, where Buchanan and Dickenson border West Virginia and Kentucky and where Henry and Carroll border North Carolina. 
+
+Let's take a look at other predictors associated with these four counties, for only one year (2011):
+
+```{r, echo=FALSE, message=FALSE}
+subset(suicide, (county=='dickenson' | county=='carroll' | county=='buchanan' | county=='henry') & year==2011, select=c(county,year,pop_tot,pop_labor,divorce.percent,unemp.percent))
+```
+
+We note a couple of predictors that stand out. All four counties's population is low, in fact below the mean population of `r as.integer(mean(suicide$pop_tot))`.  And although the divorce rate does not appear significant, the unemployment rate is on the high side, signfiicantly above the mean of `r round(mean(suicide$unemp.percent),2)` percent. 
+
+##### Analysis of Model Fit
+
+There are many ways to assess model fit. One very important way is to analyze residuals, and the other is to assess the model's deviance goodness-of-fit test. 
+
+There are several residuals to analyze (e.g., Raw, Pearson, Deviance, Standardized, etc.,). It's common to plot both raw (observed - expected) and standardized Pearson residuals versus the predicted values.  (Hilbe) What we look for in graphing residuals are :
+
+1. Evidence of a poor fit
+2. Some nonrandom patterns
+
+Patterns can indicate that the suicide observations are not independent, overdispersion exists, and/or we selected an incorrect model. From the two plots below, we see some variances for when $\mu$ was predicted to be a low value, the corresponding observed values could be quite large, and this proportional variance is reduced as the six larger suicide counts. If we had suicide counts in the range from 50 to 70, we might pick up this general pattern. This is an indication that our model does not handle the low suicide counts well. Recall, the selected Poisson distribution estimates 36 suicide counts of zero, where our model produced 1. 
 
 ```{r, echo=FALSE, message=FALSE}
 presid <- residuals(suicmod1, type="pearson")
@@ -265,13 +306,13 @@ respon <- residuals(suicmod1,type="response")
 ```
 
 ```{r, echo=FALSE, message=FALSE}
-mu <- predict(suicmod1)
+mu <- predict(suicmod1, type="response")  # calculate the predicted value on scale of response variable
 ```
 
 ```{r, echo=FALSE, message=FALSE}
 ggplot(suicide, aes(x=mu, y=respon)) + 
   geom_point(shape=1, colour="red") +
-  labs(x="Predicted value (mu)", y="Response Residual", title = "Response Residual Plot")
+  labs(x="Predicted value (mu)", y="Raw Residual", title = "Raw Residual Plot")
 ```
 
 ```{r, echo=FALSE, message=FALSE}
@@ -282,19 +323,93 @@ ggplot(suicide, aes(x=mu, y=presid)) +
 
 ```
 
+
+```{r, echo=FALSE, message=FALSE}
+dev = deviance(suicmod1)
+df = df.residual(suicmod1)
+p_value = 1 - pchisq(dev,df)
+```
+
+Another way to assess model fit is to calculate the Deviance (D) Goodness of Fit (GOF) test. Deviance is viewed a measure of the distance between the most full (saturated) model that we could possibly fit, and the proposed model we are testing. Or more succinctly, the difference between a saturate log-likelihood and the log-likelihood full model. Though the deviance is provided in the model summary as "Residual Deviance", its corresponding equation is:
+
+$$
+\begin{aligned}
+D = 2 \sum_{i=1}^{n} y_i \log(\frac{y_i}{\mu_i}) - (y_i - \mu_i)
+\end{aligned}
+$$
+
+The Deviance GOF his test is based on the view that the residual deviance is distributed as Chi2, where if the resulting Chi2 p-value is less than 0.05, the model is considered well fit. 
+
+Since our calculcated Chi2 p-value for this model is `r p_value`, our model is not necessarily considered a good fit -- but it's close.
+
 #### Poisson Regression with Fairfax County Removed
+
+We now proceed in removing the six Fairfax County entries from the data set and repeat the above analysis. We will not be as verbose and simply provide the results and quick analysis.
+
+```{r, echo=FALSE, results="hide", message=FALSE}
+suicide_nofax <- subset(suicide, county!="fairfax")
+suicmod2 = glm(suicides ~ income_med_house + divorces + pop_unemp + factor(county) + pop_tot, family="poisson", offset=log(pop_tot), data=suicide_nofax)
+summary(suicmod2)
+```
+
+Pearson Statistic: `r pearson.disp2 <- sum(residuals(suicmod2, type="pearson")^2); pearson.disp2 `
+
+Total Dispersion: `r total.disp2 <- pearson.disp2/df.residual(suicmod2); total.disp2 `
+
+In an effort to decrease the dispersion by removing the Fairfax data, we actually increase it from `r total.disp` to `r total.disp2`. With this much dispersion, we cannot rely on the accuracy of our p-values, where we note that in the model summary above, median household income would have been a signficant predictor (if there did not exist substantial dispersion). 
+
+We will plot the raw and Pearson residuals versus the predicted value $\mu$:
+
+```{r, echo=FALSE, message=FALSE}
+presid2 <- residuals(suicmod2, type="pearson")
+respon2 <- residuals(suicmod2,type="response")
+```
+
+```{r, echo=FALSE, message=FALSE}
+mu2 <- predict(suicmod2, type="response")  # calculate the predicted value on scale of response variable
+```
+
+```{r, echo=FALSE, message=FALSE}
+ggplot(suicide_nofax, aes(x=mu2, y=respon2)) + 
+  geom_point(shape=1, colour="red") +
+  labs(x="Predicted value (mu)", y="Raw Residual", title = "Raw Residual Plot sans Fairfax")
+```
+
+```{r, echo=FALSE, message=FALSE}
+
+ggplot(suicide_nofax, aes(x=mu2, y=presid2)) + 
+  geom_point(shape=1, colour="red") +
+  labs(x="Predicted value (mu)", y="Pearson Residual", title = "Pearson Residual Plot sans Fairfax")
+
+```
+
+
+```{r, echo=FALSE, message=FALSE}
+dev2 = deviance(suicmod2)
+df2 = df.residual(suicmod2)
+p_value2 = 1 - pchisq(dev2,df2)
+
+```
+We calculate the Deviance GOF Chi-Squared p-value:  `r p_value2`
+
+This is an interesting result, since p-value $< 0.05$, this test shows we reject the hypothesis that the model is not a good fit. We have a better fitting model by removing Fairfax despite the fact that we introduced a very slight increase (perhaps negligible) dispersion `r total.disp2` than with including Fairfax of `r total.disp`. 
+
+Worth noting, the same four counties that were "signficant" using the dataset containing Fairfax, are identified as significant using the dataset without Fairfax. Basic conclusions are similar. 
+
 
 #### Negative Binomial (NB) Regression
 
-How does the NB Model differ from the Poisson Model? Again, we will not discuss the NB derivation via the Maximum Likelihood formulas as there are numerous outside references, but we will outline some differences between the Poisson and NB models. The NB mean is treated in the same manner as the Poisson mean, but the variance does not have the same constraints (i.e., equivalent to the mean) of the Poisson distribution. The negative binomial is a two-parameter model, with mean mu and dispersion $\alpha$ parameters. The $\alpha$ dispersion parameter is inserted into the model as a constant, following its' calculation via a subroutine outside the regression algorithm, where if $\alpha$ tends to zero, the model is Poisson. The important takeaway is that the NB allows us to model a greater variance in the data than the Poisson. Consequently, the NB model is most always used to estimate the parameters of overdispersed data. 
+How does the NB Model differ from the Poisson Model? Again, we will not discuss the NB derivation via the Maximum Likelihood formulas as there are numerous references, but we will outline some differences between the Poisson and NB models. The NB mean is treated in the same manner as the Poisson mean, but the variance does not have the same restriction (i.e., equivalent to the mean) of the Poisson distribution. The negative binomial is also a two-parameter model, with mean mu and dispersion $\alpha$ parameters. The $\alpha$ dispersion parameter is integrated into the model as a constant, following its' calculation via a subroutine outside the regression algorithm. If $\alpha$ closely approximates to zero, the model is Poisson. The important takeaway is that the NB allows us to model a greater variance in the data than the Poisson. Consequently, the NB model is most always used to estimate the parameters of overdispersed data. 
 
 There are various forms of the NB. We will use the model where the variance function is given as:
+
 $$
 \begin{aligned}
 variance = \mu(1 + \alpha \mu) 
 \end{aligned}
 $$
 
+suicmod4 <- nbinomial(suicides ~ )
 
 ### Assess Differences Between Estimated and Actual Values
 
