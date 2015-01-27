@@ -1,0 +1,66 @@
+---
+title: 'IRAD: NOVA - Bridges'
+author: "Stu Kerr"
+date: "January 26, 2015"
+output: html_document
+---
+
+```{r,echo=FALSE,message=FALSE, results="hide", warning=FALSE}
+library(dplyr)
+library(ggvis)
+library(ggplot2)
+library(lubridate)
+setwd("/Users/stuart/DataSets/virginia/")
+bridges <- read.csv("bridge_inspections.csv", header=TRUE, quote="", row.names=NULL, stringsAsFactors = FALSE,strip.white = TRUE)  # special parameters set for this file
+bridges <-  tbl_df(bridges)
+```
+<!--- Transform the bridges df -->
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+bridges$Single.Sign...Single.Unit.Vehicle...Posted.Capacity..in.tons.= NULL
+bridges$Dual.Sign...Single.Unit.Vehicle...Posted.Capacity..in.tons. = NULL
+bridges$Dual.Sign...Combination.Unit.Vehicle...Posted.Capacity..in.tons. = NULL
+bridges$Weight.Posting.Status=NULL
+bridges$Responsibility=NULL
+bridges$Func.Obslt=NULL
+bridges$Struc.Defic=NULL
+```
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+bridges$Year.Built.Numeric <- as.numeric(as.character(bridges$Year.Built))
+bridges_numeric_built_df <- subset(bridges,bridges$Year.Built.Numeric != "  NA" & bridges$Year.Built.Numeric > 1800)
+
+obs_removed <- nrow(bridges) - nrow(bridges_numeric_built_df); obs_removed
+
+bridges <- bridges_numeric_built_df
+
+# Need to convert several chr fields to numeric:
+bridges$Avg.Daily.Traffic.Numeric <- as.numeric(as.character(bridges$Avg.Daily.Traffic))
+bridges$Health.Index.Numeric <- as.numeric(as.character(bridges$Health.Index))
+bridges$Suffic.Rating.Numeric <- as.numeric(as.character(bridges$Suffic.Rating))
+```
+
+# Introduction
+
+Quoting from a recent [Wired](http://www.wired.com/2015/01/time-fix-americas-infrastructure-heres-start/) article:
+  
+In the United States, one in 10 bridges are deemed structurally deficient, meaning the bridge has a significant defect that requires reduced weight or speed limits. Another 14 percent of the nation’s 607,380 bridges are considered “functionally obsolete,” meaning they are no longer suited to their current task because of overuse or a lack of safety features, yet are still in use.
+
+As recently as January 2015, an overpass collapsed on I-75 in Cincinnati as it was being dismantled, killing a construction worker and gravely injuring a truck driver. It remains to be seen if the collapse was due to the age and condition of the span, or was an unfortunate demolition accident, but it underscores the risks. More well known was the collapse of the I-35 West Mississippi River Bridge in Minneapolis seven years ago. Thirteen people were killed and 145 injured. The bridge had been deemed structurally deficient in 1990, though the collapse was attributed to a design flaw that was exacerbated by an increase in bridge load over time.
+
+The American Society of Civil Engineers says the US needs massive investments in all essential infrastructure, from bridges and airports to dams and railways. According to the society’s most recent infrastructure report card, the US earns a D+ for its infrastructure. It is, in a word, a mess. This is about much more than potholes. This is about keeping the economy, literally and figuratively, moving. Much of the economic boom the United States has experienced over the last 50 years is because the network of highways makes it easy to ship goods. If it continues into a state of disrepair, the long-term hit to our economy could be catastrophic.
+
+This is a statistical analysis and modeling of Virginia highway bridge infrastructure. As one of the oldest states in the U.S. with aging infrastructure, how good is Virginia's bridge infrastructure? The goal of this analysis is to statistically describe the state of Virginia's bridge infrastructure in order to calibrate an estimated repair and retrofit budget. 
+
+The bridge data for this analysis was obtained from [Virginia Department of Transportation](http://www.virginiadot.org/info/bridge.asp)
+
+### Description of the Bridge Age
+
+Virginia has some of the oldest bridges in the United States, where the oldest bridge was built in `r min(bridges$Year.Built.Numeric)`. In fact, there are `r nrow(subset(bridges, Year.Built.Numeric <= 1900))` bridges that were built in 1900 or earlier. 
+
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+ggplot(bridges, aes(x=Year.Built.Numeric)) + 
+  geom_histogram(binwidth=5, fill="red", colour="black") +
+  labs(x="Year Bridge Built (binwidth = 5 years)", y="Bridge Count", title = "Time Distribution of Virginia Bridge Building")
+```

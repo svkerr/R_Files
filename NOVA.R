@@ -148,14 +148,41 @@ bridges$Struc.Defic=NULL
 
 ## NOTE: Should clean up bridges data prior to analysis (particularly Year.Built values < 1800, cleaning up dates etc.,)
 # Get a feel for when bridges were built
-county_bridges = bridges %>%
-  group_by(Year.Built) %>%
+# Let's get Year.Built to a numeric value and subset without the NAs
+bridges$Year.Built.Numeric <- as.numeric(as.character(bridges$Year.Built))
+bridges_numeric_built_df <- subset(bridges,bridges$Year.Built.Numeric != "  NA" & bridges$Year.Built.Numeric > 1800)
+summary(bridges_numeric_built_df$Year.Built.Numeric)
+
+# Impact of cleaning up year.built variable: 472 observations removed
+obs_removed <- nrow(bridges) - nrow(bridges_numeric_built_df); obs_removed
+
+
+# convert df back to original name:
+bridges <- bridges_numeric_built_df
+
+# Need to convert several chr fields to numeric:
+bridges$Avg.Daily.Traffic.Numeric <- as.numeric(as.character(bridges$Avg.Daily.Traffic))
+bridges$Health.Index.Numeric <- as.numeric(as.character(bridges$Health.Index))
+bridges$Suffic.Rating.Numeric <- as.numeric(as.character(bridges$Suffic.Rating))
+
+# Plot bridge age distribution
+ggplot(bridges, aes(x=Year.Built.Numeric)) + 
+  geom_histogram(binwidth=5, fill="red", colour="black") +
+  labs(x="Year Bridge Built (binwidth = 5 years)", y="Bridge Count", title = "Distribution of Virginia Bridge Building")
+
+bridges %>%
+  group_by(Year.Built.Numeric) %>%
   summarise(bridges = n()) %>%
-  arrange(desc(bridges))
+  arrange(bridges)
 
 bridges %>%
   filter(Jurisdiction == "Fairfax County") %>%
   group_by(Year.Built.Numeric) %>%
+  summarise(bridges = n()) %>%
+  arrange(desc(bridges))
+
+county.bridge.count <- bridges %>%
+  group_by(Jurisdiction) %>%
   summarise(bridges = n()) %>%
   arrange(desc(bridges))
 
@@ -164,28 +191,8 @@ bridges %>%
   summarise(bridges = n()) %>%
   arrange(Year.Built.Numeric)
 
-# Let's get Year.Built to a numeric value and subset without the NAs
-bridges$Year.Built.Numeric <- as.numeric(as.character(bridges$Year.Built))
-bridges_numeric_built <- subset(bridges,bridges$Year.Built.Numeric != "  NA")
-summary(bridges_numeric_built$Year.Built.Numeric)
-str(bridges_numeric_built)
-
 bridges$Last.Inspected.mdy <- mdy(bridges$Last.Inspected)
 summary(year(bridges$Last.Inspected.mdy))
-
-# Percentage of bridges eliminated by cleaning up non-numeric year.built data entries
-(nrow(bridges) - nrow(bridges_numeric_built))/nrow(bridges) * 100
-
-bridges %>%
-  filter(Year.Built.Numeric > 1800) %>%
-  ggvis(~Year.Built.Numeric) %>%
-  layer_histograms(width=1)
-
-# Using ggplot mainly to be able to export plot to an image (ggvis does not allow this)
-bridges %>%
-  filter(Year.Built.Numeric > 1800) %>%
-  ggplot(aes(x=Year.Built.Numeric)) + geom_histogram(binwidth=2,fill="steelblue") + ggtitle("Virginia Bridges (All Types)")
-
 
 ############# Income Dataset ######################################################
 glimpse(inc)
@@ -441,6 +448,27 @@ ggplot(suicide_nofax, aes(x=mu2, y=respon2)) +
   labs(x="Predicted value (mu)", y="Raw Residual", title = "Raw Residual Plot sans Fairfax")
 
 
+suicmod3 = glm(suicides ~ income_med_house + divorces + pop_unemp + pop_tot, family="poisson", offset=log(pop_tot), data=suicide_nofax)
+summary(suicmod3)
+pearson.disp3 <- sum(residuals(suicmod3, type="pearson")^2); pearson.disp3
+total.disp3 <- pearson.disp3/df.residual(suicmod3); total.disp3   # total.disp is low for suic model
+exp_df3 <- exp(coefficients(suicmod3)); exp_df3
+presid3 <- residuals(suicmod3, type="pearson")
+respon3 <- residuals(suicmod3,type="response")
+P__disp(suicmod3)
+mu3 <- predict(suicmod3)
+par(mfrow=c(1,2))
+
+# The Deviance GOF test is based on the view that the deviance is distributed as Chi2. Deviance is in effect a measure of the distance between the most full (saturated) model we can fit, and the proposed model we are testing for fit. Or more succinctly, the difference between a saturate log-likelihood and the log-likelihood full model:
+
+
+# If the resulting Chi2 p-value is less than 0.05, the model is considered well fit. Since the Chi2 p-value is less than 0.05, our model is a good fit
+# This test statistic evaluates whether the value of the deviance, for a specific model size, is close enough to that of the saturated model that it cannot be rejected as fitting
+
+dev3 = deviance(suicmod3)
+df3 = df.residual(suicmod3)
+p_value3 = 1 - pchisq(dev3,df3)
+p_value3
 
 
 

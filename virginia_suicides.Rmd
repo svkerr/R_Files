@@ -396,6 +396,65 @@ This is an interesting result, since p-value $< 0.05$, this test shows we reject
 
 Worth noting, the same four counties that were "signficant" using the dataset containing Fairfax, are identified as significant using the dataset without Fairfax. Basic conclusions are similar. 
 
+#### Poisson Regression with County (Categorical Predictor) Removed
+
+In the previous models, we included all 95 counties as predictors. Given this number of predictors, including divorce, median household income, unemployment, etc., we had close to 100 predictors and `r 95 * 6` observations. This is an uncomfortable ratio of predictors to observations. We therefore exclude counties as a predictor and redo our calculations using the same Poisson regression model.
+
+```{r, echo=FALSE, message=FALSE}
+suicmod3 = glm(suicides ~ income_med_house + divorces + pop_unemp + pop_tot, family="poisson", offset=log(pop_tot), data=suicide)
+summary(suicmod3)
+```
+
+Pearson Statistic: `r pearson.disp3 <- sum(residuals(suicmod3, type="pearson")^2); pearson.disp3 `
+
+Total Dispersion: `r total.disp3 <- pearson.disp3/df.residual(suicmod3); total.disp3 `
+
+In an effort to balance the model (predictors to observations) by removing the county predictors, we increase dispersion from `r total.disp` to `r total.disp3`. With this much dispersion, we cannot rely on the accuracy of our p-values, where we note that in the model summary above, median household income would have been a signficant predictor (if there did not exist substantial dispersion). 
+
+Despite this, let's look at the regression coefficients anyways (by exponentiating the above linear coefficients):
+
+```{r, echo=FALSE, message=FALSE}
+exp(coef(suicmod3))
+```
+
+Given that median household income was identified as signficant (low reliability due to dispersion), we see that for every dollar increase in median income, a 0.001 percent reduction in suicides results. 
+
+We plot the raw and Pearson residuals versus the predicted value $\mu$:
+
+```{r, echo=FALSE, message=FALSE}
+presid3 <- residuals(suicmod3, type="pearson")
+respon3 <- residuals(suicmod3,type="response")
+```
+
+```{r, echo=FALSE, message=FALSE}
+mu3 <- predict(suicmod3, type="response")  # calculate the predicted value on scale of response variable
+```
+
+```{r, echo=FALSE, message=FALSE}
+ggplot(suicide, aes(x=mu3, y=respon3)) + 
+  geom_point(shape=1, colour="red") +
+  labs(x="Predicted value (mu)", y="Raw Residual", title = "Raw Residual Plot sans County Predictor")
+```
+
+```{r, echo=FALSE, message=FALSE}
+
+ggplot(suicide, aes(x=mu3, y=presid3)) + 
+  geom_point(shape=1, colour="red") +
+  labs(x="Predicted value (mu)", y="Pearson Residual", title = "Pearson Residual Plot sans County Predictor")
+
+```
+
+
+```{r, echo=FALSE, message=FALSE}
+dev3 = deviance(suicmod3)
+df3 = df.residual(suicmod3)
+p_value3 = 1 - pchisq(dev3,df3)
+
+```
+We calculate the Deviance GOF Chi-Squared p-value:  `r p_value3`
+
+Since the GOF Chi-Squared p-value $< 0.05$, we reject the hypothesis that the model is not a good fit. Thus, we have a better fitting model by removing counties as a predictor despite the fact that we increased dispersion from `r total.disp` (including counties) to `r total.disp3` by excluding counties. The apparent conflict between GOF Chi-Squared p-value and the amount of dispersion would lead one to find an "apparent dispersion" contained in the model. To fix this we could try several things, rescaling some of the predictors, sandwiching the standard estimates, etc., but due to lack of time, we'll save this as a follow-on activity and proceed with a change of models (Negative Binomial) when encountering "real dispersion" (which we're not sure we have).
+
 
 #### Negative Binomial (NB) Regression
 
@@ -409,11 +468,26 @@ variance = \mu(1 + \alpha \mu)
 \end{aligned}
 $$
 
-suicmod4 <- nbinomial(suicides ~ )
+We will also exclude counties as a predictor in order to produce a more balanced NB model. 
 
-### Assess Differences Between Estimated and Actual Values
+```{r, echo=FALSE, message=FALSE}
+suicmod4 <- glm.nb(suicides ~ income_med_house + divorces + pop_unemp + pop_tot, data=suicide, control=glm.control(maxit=100))
+summary(suicmod4)
+```
 
-### Calculate Unbiased Estimates of the Parameter(s)
+We calculate our $\alpha$ dispersion parameter to be: `r 1/suicmod4$theta`. This is "far" enough away from zero to indicate that an NB model is likely more appropriate. 
+
+Given the NB model summary above, we see that median household income, divorces and unemployment population are identified as signficant. Let's calculate the coefficients, by again exponentiating the above linear coefficients:
+
+```{r, echo=FALSE, message=FALSE}
+exp(coef(suicmod4))
+```
+
+Interpreting these results, we see that (holding other predictors constant) that for every increase in divorce, we increase the number of suicides by .2 percent and that (holding other predictors constant) for every unit increase in unemployment, we increase the number of suicides by .02 percent. 
+
+NOTE: NEED TO DISCUSS RELIABILITY OF NB P-VALUES
+
+### Conclusions and Recommendations
 
 
 
