@@ -26,7 +26,7 @@ bridges$Func.Obslt=NULL
 bridges$Struc.Defic=NULL
 ```
 
-```{r,echo=FALSE,message=FALSE, warning=FALSE}
+```{r,echo=FALSE,message=FALSE, results='hide', warning=FALSE}
 bridges$Year.Built.Numeric <- as.numeric(as.character(bridges$Year.Built))
 bridges_numeric_built_df <- subset(bridges,bridges$Year.Built.Numeric != "  NA" & bridges$Year.Built.Numeric > 1800)
 
@@ -50,13 +50,20 @@ As recently as January 2015, an overpass collapsed on I-75 in Cincinnati as it w
 
 The American Society of Civil Engineers says the US needs massive investments in all essential infrastructure, from bridges and airports to dams and railways. According to the society’s most recent infrastructure report card, the US earns a D+ for its infrastructure. It is, in a word, a mess. This is about much more than potholes. This is about keeping the economy, literally and figuratively, moving. Much of the economic boom the United States has experienced over the last 50 years is because the network of highways makes it easy to ship goods. If it continues into a state of disrepair, the long-term hit to our economy could be catastrophic.
 
+#### Study Goal
 This is a statistical analysis and modeling of Virginia highway bridge infrastructure. As one of the oldest states in the U.S. with aging infrastructure, how good is Virginia's bridge infrastructure? The goal of this analysis is to statistically describe the state of Virginia's bridge infrastructure in order to calibrate an estimated repair and retrofit budget. 
 
-The bridge data for this analysis was obtained from [Virginia Department of Transportation](http://www.virginiadot.org/info/bridge.asp)
+#### Data Set
+The bridge data for this analysis was obtained from [Open Virginia](http://data.openva.com/dataset/bridge-inspections). The original dataset, current as of January 2014, had 21,232 observations (i.e., bridges). Cleaning the data set, primarily removing entries that did not have a "Year.Built" entry or had other corruption, resulted in removing 472 observations (`r round(472/21232 * 100,1)` percent). This is a concern since in those removed bridges, there may be some that were built so long ago, that they are potentially structurally deficient. The solution was to travel to those particular areas and research county records; however, due to lack of resources associated with this IRAD, and need for accuracy, we removed them. 
 
-### Description of the Bridge Age
+Per the Virginia's DOT, of Virginia's 20,991 bridges and structures, as of May 24, 2013:
 
-Virginia has some of the oldest bridges in the United States, where the oldest bridge was built in `r min(bridges$Year.Built.Numeric)`. In fact, there are `r nrow(subset(bridges, Year.Built.Numeric <= 1900))` bridges that were built in 1900 or earlier. 
+    1,576 are listed as structurally deficient
+    3,314 are listed as functionally obsolete
+
+### Description of the Aging Bridge Infrastructure
+
+Virginia has some of the oldest bridges in the United States, where the oldest bridge was built in `r min(bridges$Year.Built.Numeric)`.  The mean bridge construction year is `r round(mean(bridges$Year.Built.Numeric),0)` where a plot of the bridge construction date distribution are provided below:
 
 
 ```{r,echo=FALSE,message=FALSE, warning=FALSE}
@@ -64,3 +71,22 @@ ggplot(bridges, aes(x=Year.Built.Numeric)) +
   geom_histogram(binwidth=5, fill="red", colour="black") +
   labs(x="Year Bridge Built (binwidth = 5 years)", y="Bridge Count", title = "Time Distribution of Virginia Bridge Building")
 ```
+
+From the box plot and summary below, we see that 25% of the bridges (`r 0.25 * nrow(bridges)` bridges) were built prior to 1948 (greater than or equal to 67 years old). We see several outliers (beyond 1.5 * IQR), in fact, there exist `r nrow(subset(bridges, Year.Built.Numeric <= 1900))` bridges built prior to or within the year 1900. 50% of bridges (`r 0.25 * nrow(bridges)` bridges) were built prior to 1968 (47 years old or greater). The median and mean are nearly equivalent. 
+
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+summary(bridges$Year.Built.Numeric)
+```
+
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+boxplot(bridges$Year.Built.Numeric,
+        pars=list(boxwex = 0.4),
+        ylab = "Year",
+        main = "Box-Plot of Bridges Built by Year")
+rug(jitter(bridges$Year.Built.Numeric, amount = 0.2),side=2,col="red")
+```
+
+
+

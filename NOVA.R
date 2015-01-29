@@ -156,7 +156,6 @@ summary(bridges_numeric_built_df$Year.Built.Numeric)
 # Impact of cleaning up year.built variable: 472 observations removed
 obs_removed <- nrow(bridges) - nrow(bridges_numeric_built_df); obs_removed
 
-
 # convert df back to original name:
 bridges <- bridges_numeric_built_df
 
@@ -165,15 +164,46 @@ bridges$Avg.Daily.Traffic.Numeric <- as.numeric(as.character(bridges$Avg.Daily.T
 bridges$Health.Index.Numeric <- as.numeric(as.character(bridges$Health.Index))
 bridges$Suffic.Rating.Numeric <- as.numeric(as.character(bridges$Suffic.Rating))
 
+# NOTE: IF I ONLY WANT COUNTY JURISDICTION ENTRIES USE THE FOLLOWING regular expression:
+bridges_county <- subset(bridges, grepl(" County", bridges$Jurisdiction, perl=TRUE))
+
 # Plot bridge age distribution
 ggplot(bridges, aes(x=Year.Built.Numeric)) + 
   geom_histogram(binwidth=5, fill="red", colour="black") +
   labs(x="Year Bridge Built (binwidth = 5 years)", y="Bridge Count", title = "Distribution of Virginia Bridge Building")
 
+boxplot(bridges$Year.Built.Numeric,
+        pars=list(boxwex = 0.4),
+        ylab = "Year",
+        xlab = "All Bridges",
+        main = "Box-Plot of Bridges Built by Year")
+rug(jitter(bridges$Year.Built.Numeric, amount = 0.2),side=2,col="red")
+
+# From the box plot and summary, we see that 25% of the bridges (5190) were built prior to 1948 (i.e., greater than or equal to 67 years old). We see several outliers (beyond 1.5 * IQR), in fact, there exist 32 bridges built prior to or within 1900. 50% of bridges (10,380) were built prior to 1968 (greater than or equal to 47 years old). The median and mean are nearly equivalent. 
+summary(bridges$Year.Built.Numeric)
+
 bridges %>%
+  + group_by(Road.System) %>%
+  + summarise(roads = n())
+
+# What county has the mean oldest bridges
+bridges %>%
+  group_by(Jurisdiction) %>%
+  summarise(meanage = mean(Year.Built.Numeric)) %>%
+  arrange(meanage)
+
+bath.bridges <- subset(bridges,Jurisdiction == "Bath County")
+summary(bath.bridges$Year.Built.Numeric)
+  
+  county.bridge.total <- bridges %>%
   group_by(Year.Built.Numeric) %>%
   summarise(bridges = n()) %>%
   arrange(bridges)
+
+ggplot(bridges, aes(x=Jurisdiction)) + 
+  geom_histogram(binwidth=5, fill="red", colour="black") +
+  labs(x="Jurisdiction", y="Bridge Count", title = "Distribution by County Virginia Bridges")
+
 
 bridges %>%
   filter(Jurisdiction == "Fairfax County") %>%
@@ -181,7 +211,23 @@ bridges %>%
   summarise(bridges = n()) %>%
   arrange(desc(bridges))
 
+fairfax.bridges <- subset(bridges, Jurisdiction == "Fairfax County")
+
+boxplot(fairfax.bridges$Year.Built.Numeric,
+        pars=list(boxwex = 0.4),
+        ylab = "Year",
+        main = "Box-Plot of Fairfax Bridges Built by Year")
+rug(jitter(fairfax.bridges$Year.Built.Numeric),side=2,col="red")
+
+
+summary(fairfax.bridges$Year.Built.Numeric)
 county.bridge.count <- bridges %>%
+  group_by(Jurisdiction) %>%
+  summarise(bridges = n()) %>%
+  arrange(desc(bridges))
+
+# Which county has the most bridges
+bridges %>%
   group_by(Jurisdiction) %>%
   summarise(bridges = n()) %>%
   arrange(desc(bridges))
@@ -251,7 +297,14 @@ ggplot(suicide, aes(x=suicides)) +
   labs(x = "Suicides (binwidth = 1)", y = "County County", title = "Distribution of Virginia Suicides") + 
   scale_x_continuous(limits=c(0,110))
 
-ggplot(suicide, aes(x=county,y=suicides)) + geom_boxplot()
+boxplot(suicide$suicides,
+        pars=list(boxwex = 0.4),
+        ylab = "Number of Suicides",
+        xlab = "All Counties",
+        main = "Box-Plot of Suicides by County Each Year (2006-2011)")
+rug(jitter(suicide$suicides, amount = 0.2),side=2,col="red")
+
+ggplot(suicide, aes(x = year, y=suicides)) + geom_boxplot()
 
 # Do outliers belong to a particular county? Yes:
 subset(suicide, suicides > 80)     # It's Fairfax

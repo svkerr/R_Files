@@ -45,13 +45,23 @@ Key questions regarding suicide counts include:
 1. How is the response variable (suicide counts) distributed?
 2. What type of values characterize the response variable?
 
-The figure below illustrates the distribution of Virginia suicides. Two immediate observations include the distribution's shape, and the 6 outliers. We note the six outliers because depending upon the distribution we select to model the data, these outliers will likely influence the model and will need consideration.
+The figure below illustrates the distribution of Virginia suicides. Two immediate observations include the distribution's shape, and the outliers. We note the six outliers because depending upon the distribution we select to model the data, these outliers will likely influence the model and will need consideration.
 
 ```{r,echo=FALSE,message=FALSE}
 ggplot(suicide, aes(x=suicides)) +
   geom_histogram(binwidth=2, fill="red", colour="black") + 
   labs(x = "Suicides (binwidth = 2)", y = "County Count", title = "Distribution of Virginia Suicides") + 
   scale_x_continuous(limits=c(0,110))
+```
+
+Let's get a better look at the outliers via a box-plot. We see that the median (horizontal line in box), where 50% of the suicides are equal to or less is about 4 suicides, and the upper quartile (top border of box), the value at which comprises 75% of the suicides are equal or less is about 8, the minimum number of suicides experienced by a county is 0, and Interquartile Ranges. What really stands out are the upper outlying values (note we have no lower outlying values). An outlier is normally defined as $1.5 * IQR$, where $IQR =$ Interquartile Range, which in this case is 6. These outliers are clearly beyond that. And as we can see from the previous histobram distribution, we see there are 6 years worth of suicide counts that are clearly outliers, and we should consider removing them from the data set. 
+
+```{r,echo=FALSE,message=FALSE}
+boxplot(suicide$suicides,
+        pars=list(boxwex = 0.4),
+        ylab = "Number of Suicides",
+        main = "Box-Plot of Suicides by County Each Year (2006-2011)")
+rug(jitter(suicide$suicides, amount = 0.2),side=2,col="red")
 ```
 
 Let's calculate some basic grouping and variance statistics of suicide response variable:
