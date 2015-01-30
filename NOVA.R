@@ -163,6 +163,8 @@ bridges <- bridges_numeric_built_df
 bridges$Avg.Daily.Traffic.Numeric <- as.numeric(as.character(bridges$Avg.Daily.Traffic))
 bridges$Health.Index.Numeric <- as.numeric(as.character(bridges$Health.Index))
 bridges$Suffic.Rating.Numeric <- as.numeric(as.character(bridges$Suffic.Rating))
+bridges$Year.Recnst.State.Numeric <- as.numeric(as.character(bridges$Year.Recnst..State))
+bridges$Year.Recnst.Fed.Numeric <- as.numeric(as.character(bridges$Year.Recnst..Fed))
 
 # NOTE: IF I ONLY WANT COUNTY JURISDICTION ENTRIES USE THE FOLLOWING regular expression:
 bridges_county <- subset(bridges, grepl(" County", bridges$Jurisdiction, perl=TRUE))
@@ -181,6 +183,8 @@ rug(jitter(bridges$Year.Built.Numeric, amount = 0.2),side=2,col="red")
 
 # From the box plot and summary, we see that 25% of the bridges (5190) were built prior to 1948 (i.e., greater than or equal to 67 years old). We see several outliers (beyond 1.5 * IQR), in fact, there exist 32 bridges built prior to or within 1900. 50% of bridges (10,380) were built prior to 1968 (greater than or equal to 47 years old). The median and mean are nearly equivalent. 
 summary(bridges$Year.Built.Numeric)
+
+table(bridges$Year.Recnst.Fed.Numeric)
 
 bridges %>%
   + group_by(Road.System) %>%
@@ -217,7 +221,7 @@ boxplot(fairfax.bridges$Year.Built.Numeric,
         pars=list(boxwex = 0.4),
         ylab = "Year",
         main = "Box-Plot of Fairfax Bridges Built by Year")
-rug(jitter(fairfax.bridges$Year.Built.Numeric),side=2,col="red")
+rug(jitter(fairfax.bridges$Year.Built.Numeric, amount = 0.2),side=2,col="red")
 
 
 summary(fairfax.bridges$Year.Built.Numeric)
@@ -225,6 +229,16 @@ county.bridge.count <- bridges %>%
   group_by(Jurisdiction) %>%
   summarise(bridges = n()) %>%
   arrange(desc(bridges))
+
+### Bridges Sufficiency Rating
+bridges_srnot0 <- subset(bridges,Suffic.Rating.Numeric >= 0)
+summary(bridges_srnot0$Suffic.Rating.Numeric)
+
+boxplot(bridges_srnot0$Suffic.Rating.Numeric,
+        pars=list(boxwex = 0.4),
+        ylab = "Sufficiency Rating",
+        main = "Virgina Bridges Sufficiency Ratings")
+rug(jitter(bridges_srnot0$Suffic.Rating.Numeric),side=2,col="red")
 
 # Which county has the most bridges
 bridges %>%
