@@ -51,8 +51,8 @@ library(COUNT)
 data(rwm5yr)
 rwm1984 = subset(rwm5yr,year==1984)
 # Knowing the dataset is vital to the modeling process. so let's table(docvis)
-docvis_cnt = table(rwm1984$docvis)
-dataf_docvis = data.frame(prop.table(table(rwm1984$docvis)))
+docvis_cnt = table(rwm1984$docvis); docvis_cnt
+dataf_docvis = data.frame(prop.table(table(rwm1984$docvis))) 
 dataf_docvis$cumulative = cumsum(dataf_docvis$Freq)
 dataf_docvis_all = data.frame(docvis_cnt,dataf_docvis$Freq*100, dataf_docvis$cumulative * 100)
 dataf_docvis_all
@@ -89,12 +89,12 @@ pr/poic$df.residual                            # Dispersion Statistic
 rwm1984 = subset(rwm5yr, year == 1984)
 poi1 = glm(docvis ~ outwork + age, family=poisson, data = rwm1984)
 summary(poi1)
-pr = sum(residuals(poi1,type="pearson")^2)  # Pearson Chi2
+pr = sum(resid(poi1,type="pearson")^2);pr  # Pearson Chi2
 pr/poi1$df.residual                         # Dispersion statistic
 poi1$aic/(poi1$df.null + 1)                 # AIC/n
 exp(coef(poi1))                             # IRR (Incidence Rate Ratios)
 xbp <- predict(poi1)                        # xb, linear predictor
-mup <- exp(xbp)                             # mu, fitted Poisson
+mup <- exp(xbp)                             # mu, fitted Poisson; equivalently predict(poi1,type="response") or fitted(poi1)
 mean(mup)                                   # expected variance, mean equals variance
 
 # Table of observed versus expected counts:

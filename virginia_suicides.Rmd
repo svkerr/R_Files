@@ -230,7 +230,7 @@ The above would indicate that a key Poisson assumption is violated. To show the 
 
 ```{r, echo=FALSE, message=FALSE}
 suic.mean <- mean(suicide$suicides)
-expected_zeros <- (exp(-suic.mean) * suic.mean^0)/factorial(0) * nrow(suicide)
+expected_zeros <- (exp(-suic.mean) * suic.mean^0)/factorial(0) * nrow(suicide)   ## potential error here need x 100
 observed_zeros <- nrow(subset(suicide, suicides ==0))
 ```
 Expected number of zero count suicides: `r expected_zeros`

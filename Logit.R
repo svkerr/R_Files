@@ -84,6 +84,7 @@ library(gmodels)
 load("~/DataSets/LRM_R/heart01.rdata")
 load("~/DataSets/LRM_R/heartr.rdata")
 load("~/DataSets/LRM_R/heart02grp.rdata")
+load("~/DataSets/LRM_R/titanic.rdata")
 simple = data.frame(death=heart01$death,anterior=heart01$anterior[,drop=TRUE])
 simple = na.omit(simple)
 tsimple = ftable(simple)
@@ -100,7 +101,7 @@ eta = coef(fit1)[1] + coef(fit1)[2]* 1    # predictor for anterior=1, this is lo
 # to go from log(odds) to probability (p) we transform log(p/(1-p)) = eta by exponentiating
 p = 1/(1 + exp(-eta))   # p is probability
 eta2 = coef(fit1)[1] + coef(fit1)[2]* 0    # predictor for anterior=0, this is log(odds)
-p2 = 1/(1 + exp(-eta2))   # p is probability
+p2 = 1/(1 + exp(-eta2))   # p2 is probability
 # Get all fitted values
 eta3 = predict(fit1,data.frame(anterior=simple$anterior),type='link',na.action=na.omit)
 CrossTable(eta3)
@@ -140,6 +141,12 @@ summary(sd_deviance_2[simple_heartr$death==1])
 summary(sd_deviance_2[simple_heartr$death==0])
 
 
+###### Interactions ##########
+titanic <- read.dta('titanic.dta')
+
 ########## Text: Beginner's Guide to GLM and GLMM with R #################
 bee = read.csv("/users/Stuart/DataSets/GLM_GLMM_R/workerbees.csv",sep=",", header=TRUE)
 plot(bee$CellSize,bee$Parasites)
+
+# Convert data to presence or absence of parasites
+bee$Parasites[bee$Parasites > 0] <- 1

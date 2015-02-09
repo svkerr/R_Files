@@ -191,7 +191,7 @@ bridges %>%
   + summarise(roads = n())
 
 # What county has the mean oldest bridges
-bridges %>%
+meanage_jur <- bridges %>%
   group_by(Jurisdiction) %>%
   summarise(meanage = mean(Year.Built.Numeric)) %>%
   arrange(meanage)
@@ -223,6 +223,17 @@ boxplot(fairfax.bridges$Year.Built.Numeric,
         main = "Box-Plot of Fairfax Bridges Built by Year")
 rug(jitter(fairfax.bridges$Year.Built.Numeric, amount = 0.2),side=2,col="red")
 
+# Next two plots compare Fairfax with overall Virginia bridge construction
+ggplot(fairfax.bridges, aes(x=Year.Built.Numeric)) + 
+  scale_y_continuous(limits=c(0,3500)) +
+  xlim(1800,2014) +
+  geom_histogram(binwidth=5, fill="red", colour="black") +
+  labs(x="Year", y="Bridge Count", title = "Distribution of Fairfax County Bridge Construction")
+
+ggplot(bridges, aes(x=Year.Built.Numeric)) + 
+  geom_histogram(binwidth=5, fill="red", colour="black") +
+  labs(x="Year Bridge Built (binwidth = 5 years)", y="Bridge Count", title = "Distribution of Virginia Bridge Construction")
+#####
 
 summary(fairfax.bridges$Year.Built.Numeric)
 county.bridge.count <- bridges %>%
@@ -230,7 +241,7 @@ county.bridge.count <- bridges %>%
   summarise(bridges = n()) %>%
   arrange(desc(bridges))
 
-### Bridges Sufficiency Rating
+### Bridges Sufficiency Rating ###############################
 bridges_srnot0 <- subset(bridges,Suffic.Rating.Numeric >= 0)
 summary(bridges_srnot0$Suffic.Rating.Numeric)
 
@@ -240,7 +251,22 @@ boxplot(bridges_srnot0$Suffic.Rating.Numeric,
         main = "Virgina Bridges Sufficiency Ratings")
 rug(jitter(bridges_srnot0$Suffic.Rating.Numeric),side=2,col="red")
 
-# Which county has the most bridges
+ggplot(bridges, aes(x=Suffic.Rating.Numeric)) + 
+  geom_histogram(binwidth=2, fill="red", colour="black") +
+  geom_vline(xintercept=c(50,80), linetype="dashed",colour="red") +
+  labs(x="Sufficiency Rating", y="Bridge Count", title = "Distribution of Virginia Bridge Sufficiency Ratings")
+
+# How many bridges have sufficiency ratings <= 50
+bridges %>%
+  filter(Suffic.Rating.Numeric <= 50) %>%
+  summarise(badbridges = n()) 
+
+# How many bridges have sufficiency ratings < =80
+bridges %>%
+  filter(Suffic.Rating.Numeric <= 80) %>%
+  summarise(badbridges = n())
+
+########## Which county has the most bridges
 bridges %>%
   group_by(Jurisdiction) %>%
   summarise(bridges = n()) %>%
@@ -254,6 +280,26 @@ bridges %>%
 bridges$Last.Inspected.mdy <- mdy(bridges$Last.Inspected)
 summary(year(bridges$Last.Inspected.mdy))
 
+
+#### Covariance Analysis #######
+# create a df that has only numeric covariates and removes those with suffic.rating.number < 0
+bridges_redux <- subset(bridges, Suffic.Rating.Numeric >= 0, select = c(Year.Built.Numeric, Avg.Daily.Traffic.Numeric, Health.Index.Numeric, Suffic.Rating.Numeric, Year.Recnst.State.Numeric) )
+cor(bridges_redux, use="complete.obs")
+
+# The small negative relationship between daily traffic and sufficiency rating is very interesting. What that says is that for higher daily traffic there are lower sufficiency ratings. that is not good. So let's generate a plot...
+
+ggplot(bridges_redux, aes(x=Suffic.Rating.Numeric, y=Avg.Daily.Traffic.Numeric)) + 
+  geom_point() +
+  geom_hline(yintercept=8109, linetype="dashed",colour="red") +
+  geom_vline(xintercept=c(50,80), linetype="dashed",colour="red") +
+  labs(x="Bridge Sufficiency Rating", y="Average Daily Traffic", title = "Bridge Sufficiency vs Daily Traffic")
+
+# Let's create a Poisson Model with Bridge Sufficiency Rating as response variable
+
+suff.mod1 <- lm(Suffic.Rating.Numeric ~ Avg.Daily.Traffic.Numeric + Year.Built.Numeric + factor(Jurisdiction), data=bridges)
+summary(suff.mod1)
+confint(suff.mod1)
+exp(coef(suff.mod1))
 ############# Income Dataset ######################################################
 glimpse(inc)
 county_inc_pop = inc %>%
@@ -295,8 +341,8 @@ suic.mean.nofax <- mean(suicide_nofax$suicides); suic.mean.nofax
 suic.var.nofax <- var(suicide_nofax$suicides); suic.var.nofax
 
 # Assume a Poisson distribution, what would be the percentage/probability of zero suicides:
-(exp(-suic.mean) * suic.mean^0)/factorial(0) * nrow(suicide)
-(exp(-suic.mean.nofax) * suic.mean.nofax^0)/factorial(0) * nrow(suicide_nofax)
+(exp(-suic.mean) * suic.mean^0)/factorial(0) * nrow(suicide)  
+(exp(-suic.mean.nofax) * suic.mean.nofax^0)/factorial(0) * nrow(suicide_nofax) 
 
 # We expect less than 1% of 0-count suicides versus the observed value of 6.3%
 # Thus a Poisson model would be overdispersed. We also see that by comparing the population mean and variance (should be nearly equal)

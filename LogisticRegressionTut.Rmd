@@ -15,12 +15,23 @@ setwd("~/R_Files/")
 
 * Desire to use a _linear model_: Powerful in that we can express the effect of the predictors on the response through a linear predictor
 
-#### Using linear regression on binomial Response Variable violates key assumptions:
+#### Using linear regression on binomial Response Variable violates key assumptions
+
+In linear regression there are several prerequisites. Two in particular:
+
+* Error is normally distributed
+
+* Response variable is normally distributed
+
+When modeling "real-world" data, the above two requisites are relaxed. However, there are a few that are more strict:
+
+* Response variable is continuous
+
+* Allowance for negative values
 
 * Variance of response variable is fairly constant
 
-* Residuals are approximately normally distributed 
-
+What happens when the response variable is binary? Error terms are either 0 or 1, variance is non-constant and negative values are nonsensical. Therefore, standard linear regression is inappropriate for binary response variables.
 
 #### Some Definitions:
 
@@ -49,6 +60,8 @@ setwd("~/R_Files/")
   
 * We now have our Logistic Regression Model (expressed in probabilities):
      + $log(\frac{P}{1 - P}) = log(odds) = \sum_{i=0}^{p}\beta_i X_i$
+     
+In Logistic Regression, the predicted mean ("fitted value") is a probability occuring [0,1].
   
   
 #### How to Use and Interpret Logistic Regression Model:
