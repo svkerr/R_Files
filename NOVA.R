@@ -9,6 +9,7 @@ library(dplyr)
 library(ggvis)
 library(ggplot2)
 library(lubridate)
+library(plyr)
 
 # Read in data files
 pop <-read.table("population.txt", header=TRUE, sep="\t", stringsAsFactors = FALSE)
@@ -45,6 +46,7 @@ indsize2013 = tbl_df(indsize2013)
 led2013_1 = tbl_df(led2013_01)
 bridges = tbl_df(bridges)
 suicide = tbl_df(suicide)
+
 ###### Commute Dataset ##########################################
 # Let's isolate virginia workers into multiple df's.
 # Those that work in the state
@@ -138,6 +140,7 @@ indsize2013 %>%
   filter(statename == "Virginia", areatyname == "County", areaname == "Fairfax County", ownership == 50, indcode == "1013  ")
 
 ############ Bridges Dataset #############################################################
+
 bridges$Single.Sign...Single.Unit.Vehicle...Posted.Capacity..in.tons.= NULL
 bridges$Dual.Sign...Single.Unit.Vehicle...Posted.Capacity..in.tons. = NULL
 bridges$Dual.Sign...Combination.Unit.Vehicle...Posted.Capacity..in.tons. = NULL
@@ -169,6 +172,7 @@ bridges$Year.Recnst.Fed.Numeric <- as.numeric(as.character(bridges$Year.Recnst..
 # NOTE: IF I ONLY WANT COUNTY JURISDICTION ENTRIES USE THE FOLLOWING regular expression:
 bridges_county <- subset(bridges, grepl(" County", bridges$Jurisdiction, perl=TRUE))
 
+########### Age of Bridge Analysis #################################################
 # Plot bridge age distribution
 ggplot(bridges, aes(x=Year.Built.Numeric)) + 
   geom_histogram(binwidth=5, fill="red", colour="black") +
@@ -186,6 +190,12 @@ summary(bridges$Year.Built.Numeric)
 
 table(bridges$Year.Recnst.Fed.Numeric)
 
+# Which year had most bridges built
+bigbuildyear <- bridges %>%
+  group_by(Year.Built.Numeric) %>%
+  summarise(bridges.built = n()) %>%
+  arrange(desc(bridges.built))
+
 bridges %>%
   + group_by(Road.System) %>%
   + summarise(roads = n())
@@ -195,6 +205,7 @@ meanage_jur <- bridges %>%
   group_by(Jurisdiction) %>%
   summarise(meanage = mean(Year.Built.Numeric)) %>%
   arrange(meanage)
+meanage_jur
 
 bath.bridges <- subset(bridges,Jurisdiction == "Bath County")
 summary(bath.bridges$Year.Built.Numeric)
@@ -233,6 +244,7 @@ ggplot(fairfax.bridges, aes(x=Year.Built.Numeric)) +
 ggplot(bridges, aes(x=Year.Built.Numeric)) + 
   geom_histogram(binwidth=5, fill="red", colour="black") +
   labs(x="Year Bridge Built (binwidth = 5 years)", y="Bridge Count", title = "Distribution of Virginia Bridge Construction")
+
 #####
 
 summary(fairfax.bridges$Year.Built.Numeric)
@@ -251,9 +263,9 @@ boxplot(bridges_srnot0$Suffic.Rating.Numeric,
         main = "Virgina Bridges Sufficiency Ratings")
 rug(jitter(bridges_srnot0$Suffic.Rating.Numeric),side=2,col="red")
 
-ggplot(bridges, aes(x=Suffic.Rating.Numeric)) + 
+ggplot(bridges_srnot0, aes(x=Suffic.Rating.Numeric)) + 
   geom_histogram(binwidth=2, fill="red", colour="black") +
-  geom_vline(xintercept=c(50,80), linetype="dashed",colour="red") +
+  geom_vline(xintercept=c(50,80), linetype="dashed",colour="black") +
   labs(x="Sufficiency Rating", y="Bridge Count", title = "Distribution of Virginia Bridge Sufficiency Ratings")
 
 # How many bridges have sufficiency ratings <= 50
@@ -281,9 +293,9 @@ bridges$Last.Inspected.mdy <- mdy(bridges$Last.Inspected)
 summary(year(bridges$Last.Inspected.mdy))
 
 
-#### Covariance Analysis #######
+#### Correlation Analysis #######
 # create a df that has only numeric covariates and removes those with suffic.rating.number < 0
-bridges_redux <- subset(bridges, Suffic.Rating.Numeric >= 0, select = c(Year.Built.Numeric, Avg.Daily.Traffic.Numeric, Health.Index.Numeric, Suffic.Rating.Numeric, Year.Recnst.State.Numeric) )
+bridges_redux <- subset(bridges_srnot0, select = c(Year.Built.Numeric, Avg.Daily.Traffic.Numeric, Health.Index.Numeric, Suffic.Rating.Numeric, Year.Recnst.State.Numeric) )
 cor(bridges_redux, use="complete.obs")
 
 # The small negative relationship between daily traffic and sufficiency rating is very interesting. What that says is that for higher daily traffic there are lower sufficiency ratings. that is not good. So let's generate a plot...
@@ -292,7 +304,25 @@ ggplot(bridges_redux, aes(x=Suffic.Rating.Numeric, y=Avg.Daily.Traffic.Numeric))
   geom_point() +
   geom_hline(yintercept=8109, linetype="dashed",colour="red") +
   geom_vline(xintercept=c(50,80), linetype="dashed",colour="red") +
-  labs(x="Bridge Sufficiency Rating", y="Average Daily Traffic", title = "Bridge Sufficiency vs Daily Traffic")
+  labs(x="Bridge Sufficiency Rating", y="Average Daily Traffic", title = "Daily Traffic vs Bridge Sufficiency")
+
+ggplot(bridges_redux, aes(x=Year.Built.Numeric, y=Suffic.Rating.Numeric)) + 
+  geom_point() +
+  labs(x="Year Built", y="Sufficiency Rating", title = "Bridge Built vs Sufficiency Rating")
+
+bad_bridges <- subset(bridges, Avg.Daily.Traffic.Numeric > 100000 & Suffic.Rating.Numeric < 80)
+bad_bridges %>%
+  group_by(Jurisdiction) %>%
+  summarise(Bad_Bridges = n()) %>%
+  arrange(desc(Bad_Bridges))
+
+more_bad_bridges <- subset(bridges, Year.Built.Numeric > 2000 & Suffic.Rating.Numeric < 80)
+more_bad_bridges %>%
+  group_by(Jurisdiction) %>%
+  summarise(Bad_Bridges = n()) %>%
+  arrange(desc(Bad_Bridges)) %>%
+  filter(Bad_Bridges > 4)
+
 
 # Let's create a Poisson Model with Bridge Sufficiency Rating as response variable
 
@@ -300,6 +330,8 @@ suff.mod1 <- lm(Suffic.Rating.Numeric ~ Avg.Daily.Traffic.Numeric + Year.Built.N
 summary(suff.mod1)
 confint(suff.mod1)
 exp(coef(suff.mod1))
+
+
 ############# Income Dataset ######################################################
 glimpse(inc)
 county_inc_pop = inc %>%

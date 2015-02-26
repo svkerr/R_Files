@@ -77,7 +77,7 @@ exp(coefficients(mdl))
 
 
 
-### Text: Logistic Regression Models; Hilbe #############################
+##### Text: Logistic Regression Models; Hilbe #############################
 library(foreign)
 library(Hmisc)
 library(gmodels)
@@ -89,23 +89,39 @@ simple = data.frame(death=heart01$death,anterior=heart01$anterior[,drop=TRUE])
 simple = na.omit(simple)
 tsimple = ftable(simple)
 CrossTable(simple$death,simple$anterior,dnn=c('death','anterior'))
+
 # drop all other variables and factor levels except 'death' and 'anterior'
 # compute logistic regression
 fit1 = glm(death ~ anterior,data=simple,family=binomial(link='logit'))
 summary(fit1)
-exp(coef(fit1))     # odds ratios corresponding to intercept and anterior coef
+exp(coef(fit1))     # odds ratios corresponding to intercept (ignored) and anterior coef
+# the exponentiated coefficient gives the odds ratio for that particular regression coefficient. In this case: A patient having an anterior site MI has approximately a two and a quarter greater odds of death within 48 hours of admission than does a patient sustaining an inferior site MI.
 confint(fit1)
 exp(confint(fit1))  # odds ratio
-# Predictions of probability
-eta = coef(fit1)[1] + coef(fit1)[2]* 1    # predictor for anterior=1, this is log(odds)
+
+# Predictions of probability: Construct model but don't exponentiate:
+# We can determine the probability of death based on having an anterior as well as inferior MI. We model the data in normal fashion, but without exponentiating the coefficients. 
+eta = coef(fit1)[1] + coef(fit1)[2]* 1  ; eta  # predictor for anterior=1, this is log(odds)
 # to go from log(odds) to probability (p) we transform log(p/(1-p)) = eta by exponentiating
-p = 1/(1 + exp(-eta))   # p is probability
+p = 1/(1 + exp(-eta)) ; p  # p is probability
 eta2 = coef(fit1)[1] + coef(fit1)[2]* 0    # predictor for anterior=0, this is log(odds)
-p2 = 1/(1 + exp(-eta2))   # p2 is probability
+p2 = 1/(1 + exp(-eta2)) ; p2 # p2 is probability
 # Get all fitted values
 eta3 = predict(fit1,data.frame(anterior=simple$anterior),type='link',na.action=na.omit)
 CrossTable(eta3)
 head(eta3)
+
+# Logistic regression using a single categorical variable (killip)
+fit2 <- glm(death ~ factor(killip), data=heart01, family=binomial(link='logit'))
+summary(fit2)
+exp(coef(fit2))  # calculate odds ratios
+# Each level of odds ratios is interpreted with respect to the base or reference level (in this case, killip level 1). So for someone coming into the ER within 48 hours, they have a 27.6 greater odds of death than someone without a heart condition (killip level 1)
+
+# A nice way to produce the probabilities associated with each predictor is the following two lines:
+eta4 = predict(fit2,type='response',na.action=na.omit)
+CrossTable(eta4)
+vcov(fit2)
+# Interpretation: The risk value (or probability of death) within 48 hours of admission with KK4 with respect to KK1 is 42.2 percent. These are the values we get when calculating mu=1/(1 + exp(-xB))
 
 ### Residual Analysis
 # Using heartr data
@@ -115,7 +131,7 @@ mu = predict(fit7_4a, type='response')
 simple_heartr = na.omit(heartr)    # need to remove NAs from heartr for next calculation (though the glm() automatically removed NAs during the regression phase using heartr)
 raw = simple_heartr$death - mu    # Calculate the raw residual (rarely used in analysis)
 head(cbind(simple_heartr$death,mu,raw))
-
+plot(mu, raw)
 # Calculate Pearson residuals
 pearson = residuals(fit7_4a, type='pearson')
 variance = mu * (1-mu)

@@ -1,5 +1,5 @@
 ---
-title: 'IRAD: NOVA - Bridges'
+title: 'IRAD: NOVA - Virginia Bridge Infrastructure'
 author: "Stu Kerr"
 date: "January 26, 2015"
 output: html_document
@@ -12,9 +12,56 @@ library(ggplot2)
 library(lubridate)
 setwd("/Users/stuart/DataSets/virginia/")
 bridges <- read.csv("bridge_inspections.csv", header=TRUE, quote="", row.names=NULL, stringsAsFactors = FALSE,strip.white = TRUE)  # special parameters set for this file
+pop <-read.table("population.txt", header=TRUE, sep="\t", stringsAsFactors = FALSE)
 bridges <-  tbl_df(bridges)
+pop <- tbl_df(pop)
+pop <- subset(pop, grepl(" County", pop$areaname, perl=TRUE))
+
+virginia.pop <- pop %>%
+  select(statename,areatyname,areaname,periodyear,periodtype, population) %>%
+  filter(statename == "Virginia" & periodtype ==1)
 ```
-<!--- Transform the bridges df -->
+
+# Introduction
+
+Quoting from a recent [Wired](http://www.wired.com/2015/01/time-fix-americas-infrastructure-heres-start/) article:
+  
+In the United States, one in 10 bridges are structurally deficient, meaning the bridge has a significant defect that requires reduced loads, reduced speed limits, or rehabilitation. Another 14 percent of the nation’s 607,380 bridges are considered “functionally obsolete,” meaning they are no longer suited to their current task -- yet are still in use.
+
+As recently as January 2015, an overpass collapsed on I-75 in Cincinnati as it was being dismantled, killing a construction worker and gravely injuring a truck driver. It remains to be seen if the collapse was due to the age and condition of the span, or was an unfortunate demolition accident, but it underscores the risks. More well known was the collapse of the I-35 West Mississippi River Bridge in Minneapolis seven years ago. Thirteen people were killed and 145 injured. The bridge had been deemed structurally deficient in 1990, though the collapse was attributed to a design flaw that was exacerbated by an increase in bridge load over time.
+
+The American Society of Civil Engineers says the US needs massive investments in all essential infrastructure, from bridges and airports to dams and railways. According to the society’s most recent infrastructure report card, the US earns a D+ for its infrastructure. It is, in a word, a mess. This is about much more than potholes. This is about keeping the economy, literally and figuratively, moving. Much of the economic boom the United States has experienced over the last 50 years is because the network of highways makes it easy to ship goods. If it continues into a state of disrepair, the long-term hit to our economy could be catastrophic.
+
+#### Study Goal
+This analysis focuses on the state of Virginia's bridge infrastructure. Virginia (particularly Northern VA) is experiencing population growth, fueled by a strong local economy, yet, it has a commensurate aging infrastructure. How sound is Virginia's existing bridge infrastructure? How many bridges are in need of repair? Are highly traveled bridges sound? How much will fixing the infrastructure cost? A goal of this analysis is to statistically describe the state of Virginia's bridge infrastructure so that an objective assessment regarding the magnitude of safety issues and budget impacts can support a decision making process. 
+
+# Data Set
+The data set used for this analysis was obtained from [Open Virginia](http://data.openva.com/dataset/bridge-inspections). The data was current as of January 2014. It consists of 21,232 observations (i.e., bridges). Below is a listing of the original data (prior to any modifications) explicitly identifying variables and their data type:
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+glimpse(bridges)
+```
+
+Data analysis requires documenting any modifications made to a data set. Modifications often take the form of "cleaning" the data, in order to make the values compatible for statistical analysis and modeling. Though the modifications we made are documented in the code base, a few highlights are mentioned here:
+
+1. Removal of variables:  Several sparsely populated variables were removed.  Keeping them would have resulted in an unbalanced data set. To identify the specific variables removed, one can refer to the code base associated with this analysis. 
+
+2. Conversion of variable value types: All value types entered into the original data set were character values (e.g., year built and various metrics). These were converted to an appropriate numerical type.
+
+3. Removal of observations (entries): Some variables, though not sparsely populated, either did not have an entry or contained a "nonsense" value (e.g., -1 for a sufficiency rating). The observations corresponding these entries were removed. For example, the "Year.Built" entry resulted in removing 472 observations (`r round(472/21232 * 100,1)` percent). This is a concern since in those removed bridge observations, there may be some that are potentially structurally deficient. Given the low percentage, we removed these observations. A solution would be to travel to those particular areas and research county records; however, due to lack of resources associated with this IRAD, and need for accuracy, we removed them. 
+
+Factoid (that we may keep):
+Per the Virginia's DOT, of Virginia's 20,991 bridges and structures, as of May 24, 2013:
+
+    1,576 are listed as structurally deficient
+    3,314 are listed as functionally obsolete
+
+# Budget Planning
+
+
+### Magnitude of Problem: Aging Bridge Infrastructure
+
+<!--- Before doing analysis, transform the bridges df -->
 
 ```{r,echo=FALSE,message=FALSE, warning=FALSE}
 bridges$Single.Sign...Single.Unit.Vehicle...Posted.Capacity..in.tons.= NULL
@@ -27,43 +74,19 @@ bridges$Struc.Defic=NULL
 ```
 
 ```{r,echo=FALSE,message=FALSE, results='hide', warning=FALSE}
-bridges$Year.Built.Numeric <- as.numeric(as.character(bridges$Year.Built))
-bridges_numeric_built_df <- subset(bridges,bridges$Year.Built.Numeric != "  NA" & bridges$Year.Built.Numeric > 1800)
-
-obs_removed <- nrow(bridges) - nrow(bridges_numeric_built_df); obs_removed
-
-bridges <- bridges_numeric_built_df
-
 # Need to convert several chr fields to numeric:
+bridges$Year.Built.Numeric <- as.numeric(as.character(bridges$Year.Built))
 bridges$Avg.Daily.Traffic.Numeric <- as.numeric(as.character(bridges$Avg.Daily.Traffic))
 bridges$Health.Index.Numeric <- as.numeric(as.character(bridges$Health.Index))
 bridges$Suffic.Rating.Numeric <- as.numeric(as.character(bridges$Suffic.Rating))
+
+bridges_numeric_built_df <- subset(bridges,bridges$Year.Built.Numeric != "  NA" & bridges$Year.Built.Numeric > 1800)
+obs_removed <- nrow(bridges) - nrow(bridges_numeric_built_df); obs_removed
+bridges <- bridges_numeric_built_df
 ```
 
-# Introduction
 
-Quoting from a recent [Wired](http://www.wired.com/2015/01/time-fix-americas-infrastructure-heres-start/) article:
-  
-In the United States, one in 10 bridges are deemed structurally deficient, meaning the bridge has a significant defect that requires reduced weight or speed limits. Another 14 percent of the nation’s 607,380 bridges are considered “functionally obsolete,” meaning they are no longer suited to their current task because of overuse or a lack of safety features, yet are still in use.
-
-As recently as January 2015, an overpass collapsed on I-75 in Cincinnati as it was being dismantled, killing a construction worker and gravely injuring a truck driver. It remains to be seen if the collapse was due to the age and condition of the span, or was an unfortunate demolition accident, but it underscores the risks. More well known was the collapse of the I-35 West Mississippi River Bridge in Minneapolis seven years ago. Thirteen people were killed and 145 injured. The bridge had been deemed structurally deficient in 1990, though the collapse was attributed to a design flaw that was exacerbated by an increase in bridge load over time.
-
-The American Society of Civil Engineers says the US needs massive investments in all essential infrastructure, from bridges and airports to dams and railways. According to the society’s most recent infrastructure report card, the US earns a D+ for its infrastructure. It is, in a word, a mess. This is about much more than potholes. This is about keeping the economy, literally and figuratively, moving. Much of the economic boom the United States has experienced over the last 50 years is because the network of highways makes it easy to ship goods. If it continues into a state of disrepair, the long-term hit to our economy could be catastrophic.
-
-#### Study Goal
-This is a statistical analysis of Virginia state's highway bridge infrastructure. As one of the oldest states in the U.S. with a corresponding aging infrastructure, and one of economic growth in Northern Virginia, a relevant question to ask is how sound is Virginia's existing transportation infrastructure - in particular, it's bridge infrastructure? A state and county can focus on expansion, but care and maintenace of existing infrastructure can be costly and redirect development funds. The goal of this analysis is to statistically describe the state of Virginia's bridge infrastructure in order to objectively assess the magnitude of maintaining this infrastrure and potentially will impact Federal, State and County budgets. 
-
-#### Data Set
-The bridge data for this analysis was obtained from [Open Virginia](http://data.openva.com/dataset/bridge-inspections). The original dataset, current as of January 2014, had 21,232 observations (i.e., bridges). Cleaning the data set, primarily removing entries that did not have a "Year.Built" entry or had other corruption, resulted in removing 472 observations (`r round(472/21232 * 100,1)` percent). This is a concern since in those removed bridges, there may be some that were built so long ago, that they are potentially structurally deficient. The solution was to travel to those particular areas and research county records; however, due to lack of resources associated with this IRAD, and need for accuracy, we removed them. 
-
-Per the Virginia's DOT, of Virginia's 20,991 bridges and structures, as of May 24, 2013:
-
-    1,576 are listed as structurally deficient
-    3,314 are listed as functionally obsolete
-
-### Aging Bridge Infrastructure
-
-Virginia has some of the oldest bridges in the United States, where the oldest bridge was built in `r min(bridges$Year.Built.Numeric)`.  The mean bridge construction year is `r round(mean(bridges$Year.Built.Numeric),0)` where a plot of the bridge construction date distribution are provided below:
+Virginia has some of the oldest bridges in the United States, where the oldest bridge contained in our final data set was built in `r min(bridges$Year.Built.Numeric)`.  The mean bridge construction year is `r round(mean(bridges$Year.Built.Numeric),0)`. A plot which describes the distribution of when Virginia bridges were built is provided below. 
 
 
 ```{r,echo=FALSE,message=FALSE, warning=FALSE}
@@ -72,13 +95,21 @@ ggplot(bridges, aes(x=Year.Built.Numeric)) +
   labs(x="Year Bridge Built (binwidth = 5 years)", y="Bridge Count", title = "Yearly Distribution of Virginia Bridge Building")
 ```
 
-From the box plot and summary below, we see that 25% of the bridges (`r 0.25 * nrow(bridges)` bridges) were built prior to 1948 (greater than or equal to 67 years old). We see several outliers (beyond 1.5 * IQR), in fact, there exist `r nrow(subset(bridges, Year.Built.Numeric <= 1900))` bridges built prior to or within the year 1900. 50% of bridges (`r 0.25 * nrow(bridges)` bridges) were built prior to 1968 (47 years old or greater). The median and mean are nearly equivalent. 
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+bigbuildyear <- bridges %>%
+  group_by(Year.Built.Numeric) %>%
+  summarise(bridges.built = n()) %>%
+  arrange(desc(bridges.built))
+```
+
+From this distribution, we see three distinct modes, with the most significant one occuring around 1930. Accounting for the distribution's bin-width spanning 5 years, analysis of the data shows that in the year  `r bigbuildyear$Year.Built.Numeric[1]` a total of `r bigbuildyear$bridges.built[1]` bridges were built. One possible explanation of this tremendous spike may be attributed to U.S. President Herbert Hoover, who during his first two years as President increased Federal expenditures for public work projects - particularly road related projects. Immediately following these two years of funding, the Revenue Act of 1932 was enacted, drastically reducing Federal expenditures. This may explain the sharp peak followed by a dramatic reduction in bridge building. The more salient point is that these bridges were built 83 years ago. 
+
+We now look at some basic descriptive statistics related to Virginia bridge building and the aging bridge infrastructure.
 
 
 ```{r,echo=FALSE,message=FALSE, warning=FALSE}
 summary(bridges$Year.Built.Numeric)
 ```
-
 
 ```{r,echo=FALSE,message=FALSE, warning=FALSE}
 boxplot(bridges$Year.Built.Numeric,
@@ -88,40 +119,32 @@ boxplot(bridges$Year.Built.Numeric,
 rug(jitter(bridges$Year.Built.Numeric, amount = 0.2),side=2,col="red")
 ```
 
-This distribution can lead one to a very biased interpretion of the potentially obsolete and dangerous state of Virginia's bridges. Accompanying this data, are data that contains the dates of Federal and State bridge reconstruction efforts per bridge. So, a bridge may have a construction date of 1927, and rightly so, one may assume the bridge is in failure condition. However, due to bridge reconstruction efforts, it now may be suitable for modern day traffic volume and loads. So how can we get a good overall metric? We can get this measure from the documented "Sufficiency Ratings."
+From the box plot and summary above, we see that 25% of the bridges (`r 0.25 * nrow(bridges)` bridges) were built prior to 1948 (greater than or equal to 67 years old). We see several outliers (beyond 1.5 * IQR), in fact, there exist `r nrow(subset(bridges, Year.Built.Numeric <= 1900))` bridges built prior to or within the year 1900. 50% of bridges (`r 0.25 * nrow(bridges)` bridges) were built prior to 1968 (47 years old or greater). The median and mean are nearly equivalent. 
+This distribution begins to highlight the potentially obsolete and dangerous state of Virginia's bridges. However, it's only scratching the surface. Within the data set, are data that contains the dates of Federal and State bridge reconstruction efforts per bridge. So, a bridge may have a construction date of 1927, but may have experience bridge reconstruction efforts to fix any defects and make it suitable for increased traffic volume and loads. So how can we get a good overall metric describing overall bridge health - and is it available within the available data set?
 
+# Safety
 
 ### Bridge Inspections and Ratings Background
 
-With the past collapse of the I-35W bridge in Minnesota, national discussion has focused on bridges being classified as structurally deficient and functionally obsolete. Of course, these discussions have led to much confusion as to the actual meaning and definitions.
+On August 1, 2007, the I-35W highway bridge in Minnesota collapsed, where 111 vehicles were on the bridge at the time, 11 people died, and 145 people were injured. Following this collapse, a national discussion focused on bridges being classified as structurally deficient and functionally obsolete. Of course, these discussions have led to confusion as to the actual meaning and definitions. This led to defining a bridge's "Sufficiency Rating."
 
-According to the [Virginia Department of Transportation (VDOT)](http://www.virginiadot.org/info/resources/bridge_defs.pdf), VDOT exceeds the Federally established National Bridge Inspection (NBI) standards by inspecting and documenting all bridges regardless of their length and all culverts having an opening greater than 36 square feet. (NOTE: Most of the narrative text is lifted from the above website)
+NOTE: According to the [Virginia Department of Transportation (VDOT)](http://www.virginiadot.org/info/resources/bridge_defs.pdf), VDOT exceeds the Federally established National Bridge Inspection (NBI) standards by inspecting and documenting all bridges regardless of their length and all culverts having an opening greater than 36 square feet. (NOTE: Most of the narrative text is lifted from the above website)
 
 #### Bridge Sufficiency Rating
 
-What is a bridge’s “sufficiency rating?” Sufficiency ratings were developed by the Federal Highway Administration to serve as a prioritization tool to allocate funds. The rating varies from 0 percent (poor) to 100 percent (very good). The formula considers structural adequacy, whether the bridge is functionally obsolete and level of service provided to the public. 
+What is a bridge’s “Sufficiency Rating?” Sufficiency ratings were developed by the Federal Highway Administration to serve as a prioritization tool to allocate funds. The rating varies from 0 percent (poor) to 100 percent (very good). The formula considers structural adequacy, whether the bridge is functionally obsolete and level of service provided to the public. 
 
-The sufficiency rating formula is a method of evaluating a bridge’s sufficiency to remain in service, based on a combination of several factors. The result of the formula is a percentage in which 100 percent represents an entirely sufficient bridge and zero percent represents an entirely insufficient or deficient bridge. 
-
-The sufficiency rating doesn’t necessarily indicate a bridge’s ability to carry traffic loads. It helps determine which bridges may need repair or replacement, not potential for collapse. 
+The sufficiency rating formula is a method of evaluating a bridge’s sufficiency to remain in service, based on a combination of several factors. The result of the formula is a percentage in which 100 percent represents an entirely sufficient bridge and zero percent represents an entirely insufficient or deficient bridge. Though the sufficiency rating doesn’t necessarily indicate a bridge’s ability to carry traffic loads, it helps determine which bridges may need repair or replacement. 
 
 A bridge’s sufficiency rating also affects its eligibility for federal funding for maintenance, rehabilitation, or replacement. For bridges to qualify for federal replacement funds, they must have a rating of 50 or below. To qualify for federal rehabilitation funding, a bridge must have a sufficiency rating of 80 or below.
 
-Let's look at Virginia's bridge sufficiency ratings.  It should be noted that we removed `r nrow(subset(bridges,Suffic.Rating.Numeric < 0))` bridges from the data set prior to calculating the below statistical summary and box-plot of Sufficiency Ratings. Because the Sufficiency Rating is limited to values from 0 to 100, bridges having Sufficiency Ratings not within those parameters were removed. The bridges removed had Sufficiency Ratings less than 0. 
+### Bridge Counts versus Sufficiency Ratings
+
+Fortunately, our data set containes sufficiency ratings. It should be noted that we removed `r nrow(subset(bridges,Suffic.Rating.Numeric < 0))` bridges from the data set prior to performing any analysis. Because the Sufficiency Ratings have a range in values from 0 to 100, bridges having Sufficiency Ratings not within that range were removed. The bridges removed had Sufficiency Ratings less than 0. Let's take a look at Virginia's bridge sufficiency ratings.
 
 ```{r,echo=FALSE,message=FALSE, results="hide", warning=FALSE}
 bridges_srnot0 <- subset(bridges,Suffic.Rating.Numeric >= 0)
 ```
-
-1. Median of `r median(bridges_srnot0$Suffic.Rating.Numeric)` and Mean of `r mean(bridges_srnot0$Suffic.Rating.Numeric)`: This means that 50% of the bridges have a good sufficiency rating, where the highest score of 100 has been given. 
-
-2. The lower quartile, 25% of Virginia bridges (`r nrow(subset(bridges_srnot0, Suffic.Rating.Numeric <= 72.7))` bridges) have a rating of 72.5 or below. This means that these bridges are eligible for Federal rehabiitation funding. 
-
-3. The total amount of Virginia bridges available for federal rehabilitation funding, counting those bridges with a sufficiency rating of 80 or below is: `r nrow(subset(bridges_srnot0, Suffic.Rating.Numeric <= 80))` bridges, or `r round(nrow(subset(bridges_srnot0,Suffic.Rating.Numeric <= 80))/nrow(bridges_srnot0) * 100,2)` percent of Virginia's bridges. 
-
-4. The total amount of Virginia bridges available for federal replacment funding, counting those bridges with a sufficiency rating of 50 or below is: `r nrow(subset(bridges_srnot0, Suffic.Rating.Numeric <= 50))` bridges, or `r round(nrow(subset(bridges_srnot0, Suffic.Rating.Numeric <= 50))/nrow(bridges_srnot0) * 100,2)` percent of Virginia's bridges.
-
-Unknown is the rehabilitation or replacement funding required for each bridge, but this at least identifies the set of bridges eligible. Also given that other states are likely competing for rehabilitation funds, it is unclear as to which are fixed or not fixed (and continue to deteroriate).
 
 ```{r,echo=FALSE,message=FALSE, warning=FALSE}
 summary(bridges_srnot0$Suffic.Rating.Numeric)
@@ -135,4 +158,111 @@ boxplot(bridges_srnot0$Suffic.Rating.Numeric,
 rug(jitter(bridges_srnot0$Suffic.Rating.Numeric, amount = 0.2),side=2,col="red")
 ```
 
+From the above statistical summary and box-plot of Sufficiency Ratings. 
+
+1. Median of `r median(bridges_srnot0$Suffic.Rating.Numeric)` and Mean of `r round(mean(bridges_srnot0$Suffic.Rating.Numeric,2))`: This means that approximately 50% of the bridges have a good sufficiency rating. 
+
+2. The lower quartile, 25% of Virginia bridges (`r nrow(subset(bridges_srnot0, Suffic.Rating.Numeric <= 72.7))` bridges) have a rating of 72.7 or below. This means that these bridges are eligible for Federal rehabiitation funding. 
+
+We now plot the distribution of bridges per Sufficiency. Vertical lines are drawn at Sufficiency Ratings of 50 and 80. This helps illustrate the number of bridges eligible for rehavilitation or replacement funds. 
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+ggplot(bridges_srnot0, aes(x=Suffic.Rating.Numeric)) + 
+  geom_histogram(binwidth=2, fill="red", colour="black") +
+  geom_vline(xintercept=c(50,80), linetype="dashed",colour="black") +
+  labs(x="Sufficiency Rating", y="Bridge Count", title = "Distribution of Virginia Bridge Sufficiency Ratings")
+```
+
+The above plot, illustrates the magnitude of the problem:
+
+1. The total amount of Virginia bridges available for federal rehabilitation funding, counting those bridges with a sufficiency rating of 80 or below is: `r nrow(subset(bridges_srnot0, Suffic.Rating.Numeric <= 80))` bridges, or `r round(nrow(subset(bridges_srnot0,Suffic.Rating.Numeric <= 80))/nrow(bridges_srnot0) * 100,2)` percent of Virginia's bridges. 
+
+2. The total amount of Virginia bridges available for federal replacment funding, counting those bridges with a sufficiency rating of 50 or below is: `r nrow(subset(bridges_srnot0, Suffic.Rating.Numeric <= 50))` bridges, or `r round(nrow(subset(bridges_srnot0, Suffic.Rating.Numeric <= 50))/nrow(bridges_srnot0) * 100,2)` percent of Virginia's bridges.
+
+How can Virginia prioritize which bridges get fixed? Is it simply a matter of looking at the lowest sufficiency rating. Or should we look at the probability of lives potentially being lossed given a low sufficiency rating? One way to answer this latter question is to analyze the daily vehicle traffic crossing each of the deficient bridges. 
+
+### Vehicle Traffic versus Sufficiency Rating - Playing the Odds?
+
+A quick correlation/variance analysis highlighted an interesting relationship between a bridge's average daily traffic pattern and its' sufficiency rating. This relationship (using a Pearson correlation) was calculated to be slightly negative (see below). One could rationalize that due to "wear and tear" of a higher traffic volume, bridges would be expected to have  a lower sufficiency rating. Or, a higher traffic average traffic volume would lead to a bridge's sufficiency rating decreasing at a faster rate than one experiencing a lower traffic volume. We leave this as a potential future modeling exercise. 
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+bridges_redux <- subset(bridges_srnot0, select = c(Year.Built.Numeric, Avg.Daily.Traffic.Numeric, Suffic.Rating.Numeric) )
+```
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+cor(bridges_redux, use="complete.obs")
+```
+
+We now make a scatter plot of the average daily traffic of the bridge count versus the sufficiency rating, wehre we again place vertical dashed lines at sufficiency ratings of 50 and 80. We also provide a horizontal dashed line correspoding the mean average daily traffic of `r round(mean(bridges_srnot0$Avg.Daily.Traffic.Numeric),2)` cars. 
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+meantraffic <- mean(bridges_redux$Avg.Daily.Traffic.Numeric)
+ggplot(bridges_redux, aes(x=Suffic.Rating.Numeric, y=Avg.Daily.Traffic.Numeric)) + 
+  geom_point() +
+  geom_hline(yintercept=meantraffic, linetype="dashed",colour="red") +
+  geom_vline(xintercept=c(50,80), linetype="dashed",colour="red") +
+  labs(x="Bridge Sufficiency Rating", y="Average Daily Traffic", title = "Daily Traffic vs Bridge Sufficiency")
+```
+
+The above scatter plot clearly shows a significant number of bridges experiencing some of the highest average daily traffic that are eligible for rehabilitation funding. Where are these bridges located? Let's identify the bridge locations (by Jurisdiction) with an average daily traffic volume exceeding 100,000 vehicles per day (well above the mean traffic volume) and a sufficiency rating less than 80.
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+bad_bridges <- subset(bridges, Avg.Daily.Traffic.Numeric > 100000 & Suffic.Rating.Numeric < 80)
+bad_bridges %>%
+  group_by(Jurisdiction) %>%
+  summarise(Bad_Bridges = n()) %>%
+  arrange(desc(Bad_Bridges))
+```
+
+Finally, we plot the bridges sufficiency rating versus the year the bridge was constructed.
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+ggplot(bridges_redux, aes(x=Year.Built.Numeric, y=Suffic.Rating.Numeric)) + 
+  geom_point() +
+  geom_hline(yintercept = c(50,80), linetype="dashed", colour="red") + 
+  labs(x="Year Built", y="Sufficiency Rating", title = "Sufficiency Rating versus Year Bridge Built")
+```
+
+The above chart was surprising because one would expect a "newly" constructed bridge to have sufficiency ratings eligible to receive replacement or rehabilitation funds. Clearly, this is not the case in Virginia. Where are these deficient bridges located? We will identify those jurisdictions with bridges constructed after the year 2000 and have sufficiency ratings less than 80. Because there are 74 jurisdictions meeting this criteria, we only list those with 8 or more bridges meeting this criteria.
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+more_bad_bridges <- subset(bridges, Year.Built.Numeric > 2000 & Suffic.Rating.Numeric < 80)
+more_bad_bridges %>%
+  group_by(Jurisdiction) %>%
+  summarise(Bad_Bridges = n()) %>%
+  arrange(desc(Bad_Bridges)) %>%
+  filter(Bad_Bridges > 4)
+```
+
+What does this mean? Perhaps the contractors took "shortcuts" when constructing the bridges. Perhaps a bad specification was provided. Perhaps a recent storm impacted the bridge's integrity. Further investigation is required. 
+
+# Recommendations
+
+### Which Bridges to Fix
+
+Several methodologies exist to help prioritize which bridges get restored or replaced first. Clearly, one approach is to base prioritization on lowest sufficiency ratings (i.e., fixes the bridges that are in the worse condition). A good first cut. However, what if a bridge that has a median-level sufficiency rating supports traffic in an area where an increasing in population and resulting commuter traffic has a high traffic load. This bridge's condition would decline more rapidly, and if collapses, have a large economic, not to mention mortality impact than a really bad bridge serving a very rural population. 
+
+Given the latter argument, we'll synthesize population and commuter data with bridge sufficiency ratings. 
+
+#### Population Centers and Growth
+
+Where are the largest Virginia population centers? Which ones are have a trending growing population? Perhaps these are the counties upon which to focus - give that they have bridges with sufficiency ratings indicating rehabilitation or replacement. 
+
+Below is a figure that plots each Virginia county's population from 1970 to 2012. 
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+ggplot(virginia.pop, aes(periodyear, population, group=areaname)) + 
+  geom_line() +
+  labs(x="Year", y="Population", title = "Annual Growth of Virginia Counties (1970-2012")
+```
+
+Clearly, most of Virginia's counties have relatively stable (one might say stagnant) population level. However, there five counties with population growing trends whose populations exceeded 300,000 by 2010. They are:
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+growers <- virginia.pop %>%
+  filter(population > 300000) %>%
+  select(areaname, periodyear, population) %>%
+  filter(periodyear == 2010) %>%
+  arrange(desc(population)); growers
+```
 

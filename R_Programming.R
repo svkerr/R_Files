@@ -1,16 +1,57 @@
 # Practice area for R Programming
+## Text: Hands On Programming with R ###########################
 setwd("/Users/stuart/R_Files/")
 library(dplyr)
 library(ggplot2)
 
-x = c(5,12,13)
-for (n in x) {
-  print(n^2)
+# Dice simulation function
+roll <- function() {
+  die <- 1:6
+  dice <- sample(die, size=2, replace=TRUE)
+  sum(dice)  # last line in function must return a value
 }
 
-i = 1
-while (i <=10) i = i + 4
-i
+roll2 <- function(die = 1:6){   # Note that an argument assignment must be an '=' sign (default values)
+  dice <- sample(die, size=2, replace=TRUE)
+  sum(dice)
+}
+
+## Now let's experiment with the dice simulator
+z <- 1:1000
+foo = vector()
+for(i in z){ 
+  foo <- c(foo, roll2())
+}
+foo
+qplot(foo, binwidth=1)
+
+## Instead of a for() loop, let's use replicate()
+rolls <- replicate(10000,roll())
+qplot(rolls, binwidth=1)
+
+## Let's weight the number 6 with a 3/8 probability
+## This vector will be fed to sample() within our function
+weights <- c(1/8, 1/8, 1/8, 1/8, 1/8, 3/8)  # weights is an atomic vector
+roll_weighted <- function() {
+  die <- 1:6
+  dice <- sample(die, size=2, replace=TRUE, prob=weights)
+  sum(dice)  # last line in function must return a value
+}
+rolls <- replicate(10000,roll_weighted())
+qplot(rolls, binwidth=1)
+
+### Part II Playing Cards
+# Design a deck of playing cards that we can shuffle and deal from
+die <- 1:6
+names(die)
+names(die) <- c("one", "two", "three", "four", "five", "six")
+die
+names(die)
+attributes(die)
+# to remove the attribute of names, set it to null:
+names(die) <- NULL
+
+
 
 # Loop to read and print contents of two files
 for(file in c("file1", "file2")) {
@@ -72,19 +113,6 @@ par(mfrow=c(2,2))
 plot(model3)
 par(mfrow=c(1,1)) 
 
-#### Binomial Data ######
-data(orings)
-plot(damage/6 ~ temp,orings)
-lmod = lm(damage/6 ~ temp,orings)
-abline(lmod)
-
-logitmod = glm(cbind(damage,6-damage) ~ temp, family=binomial,orings)
-summary(logitmod)
-
-plot(damage/6 ~ temp,orings,xlim=c(25,85), ylim=c(0,1),
-     xlab="Temperature",ylab="Prob of damage")
-x = seq(25,85,1)
-lines(x,ilogit(11.6630-0.2162*x))    # ilogit computes the inerse logit transformation
 
 ############# Art of R Programming ##############################
 oddcount = function(x) { 

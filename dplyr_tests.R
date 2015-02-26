@@ -20,7 +20,7 @@ library(hflights)
 data(hflights)
 head(hflights)
 
-# convert data to a "local data frame"
+# convert data to a "dplyr data frame"
 flights = tbl_df(hflights)
 flights   # kinda don't need to use head(flights)
 str(flights)
@@ -28,6 +28,19 @@ glimpse(flights)
 
 # Use unix pipe | for an 'OR' condition
 filter(flights,UniqueCarrier=='AA' | UniqueCarrier=='UA')
+
+# Find all flights to SFO or OAK, in January, delayed by more than an hour, that departed between midnight and 5am, where the arrival delay was twice the departure delay
+
+flights %>%
+  filter(Dest == 'OAK' | Dest=='SFO') %>%
+  filter(Month == 1) %>%
+  filter(DepDelay > 60) %>%
+  filter(DepTime < 1200) %>%
+  filter(ArrDelay > 2 * DepDelay)
+
+# Order flights by departure date:
+flights %>%
+  arrange(DayofMonth,DepTime)
 
 # Pick columns by name versus awkward R approach
 select(flights, DepTime,ArrTime,FlightNum)
@@ -266,6 +279,18 @@ flights %>%
   summarise(n = n()) %>%
   mutate(rank = rank(desc(n))) %>%
   filter(rank == 1)
+
+# An attempt to use the set function intersect()
+
+set1 <- flights %>%
+  filter(DayofMonth == 31 & Dest == "DFW" & Distance > 25) %>%
+  select(TailNum)
+
+set2 <- flights %>%
+  filter(DayofMonth == 1 & Dest == "DFW" & Distance > 25) %>%
+  select(TailNum)
+
+intersect(set1,set2)
 
 # Use summarise() to calculate n_carrier, the total number of unique carriers in hflights2. Save the result to the variable s2. Whether or not you use the pipe is up to you!
 
