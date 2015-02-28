@@ -9,6 +9,7 @@ library(dplyr)
 library(ggvis)
 library(ggplot2)
 library(lubridate)
+library(reshape2)
 library(plyr)
 
 # Read in data files
@@ -70,13 +71,55 @@ commute %>%
 summarise(va_livework, workers = sum(workers))
 
 # States supplying workers to Virginia, ranked by number of workers
+va_commwork <- commute %>%
+  filter(statename != "Virginia" & wkstatename == "Virginia")
+
 va_commwork %>%
   group_by(statename) %>%
   summarise(count = n(), num_workers = sum(workers)) %>%
   arrange(desc(num_workers))
 
 ###### Population Dataset ##########################################
+# Restrict population analyis to just counties and not cities as well (which get included with 'areaname')
+pop <- subset(pop, grepl(" County", pop$areaname, perl=TRUE))
 # Create some dataframe subsets to analyze
+
+fairfax_pop <- pop %>%
+  filter(areaname == "Fairfax County" & statename == "Virginia" & periodtype ==1) 
+
+chesterfield_pop <- pop %>%
+  filter(areaname == "Chesterfield County" & statename == "Virginia" & periodtype ==1) 
+
+ggplot(fairfax_pop, aes(x=periodyear, y=population)) + 
+  geom_point(colour="red") +
+  labs(x="Year", y="Population", title = "Fairfax County Population")
+
+ggplot(chesterfield_pop, aes(x=periodyear, y=population)) + 
+  geom_point(colour="red") +
+  labs(x="Year", y="Population", title = "Chesterfield County Population")
+
+virginia.pop <- pop %>%
+  select(statename,areatyname,areaname,periodyear,periodtype, population) %>%
+  filter(areatyname == "County" & statename == "Virginia" & periodtype ==1)
+
+ggplot(virginia.pop, aes(periodyear, population, group=areaname)) + 
+  geom_line() +
+  labs(x="Year", y="Population", title = "Annual Growth of Virginia Counties")
+
+ggplot(virginia.pop, aes(x=periodyear, y=population, colour=areaname,group=areaname)) +
+  geom_line() +
+  theme(legend.position="none") +
+  ggtitle("Annual Population Growth Curves of Virginia Counties")
+
+
+# From the above plot, let's figure out which ones have population > 300,000 in 2010 excluding Fairfax
+growers <- virginia.pop %>%
+  filter(population > 300000) %>%
+  select(areaname, periodyear, population) %>%
+  filter(periodyear == 2010) %>%
+  arrange(desc(population)); growers
+
+bridges_county <- subset(bridges, grepl(" County", bridges$Jurisdiction, perl=TRUE))
 pop %>%
   select(statename,areatyname,areaname,periodyear,periodtype, population) %>%
   filter(areatyname == "County" & statename == "Virginia" & periodtype ==1) %>%
@@ -87,7 +130,7 @@ pop %>%
             sd_pop = sd(population),
             var_pop = var(population)) %>%
   arrange(desc(max_pop)) 
-ggvis((max_pop))
+
 
 # How many unique years (time span) do we have?
 pop %>%
@@ -97,8 +140,8 @@ pop %>%
 pop %>%
   filter(areatyname=="County" & statename == "Virginia" & areatype ==4) %>%
   group_by(areaname) %>%
-  summarise(max_pop = max(population)) 
-#  summarise(num_counties = n())
+  summarise(max_pop = max(population)) %>%
+  arrange(desc(max_pop))
 
 areanames = pop %>%
   group_by(areaname) %>%

@@ -251,12 +251,13 @@ Where are the largest Virginia population centers? Which ones are have a trendin
 Below is a figure that plots each Virginia county's population from 1970 to 2012. 
 
 ```{r,echo=FALSE,message=FALSE, warning=FALSE}
-ggplot(virginia.pop, aes(periodyear, population, group=areaname)) + 
+ggplot(virginia.pop, aes(x=periodyear, y=population, colour=areaname,group=areaname)) +
   geom_line() +
-  labs(x="Year", y="Population", title = "Annual Growth of Virginia Counties (1970-2012")
+  theme(legend.position="none") +
+  ggtitle("Annual Virginia County Population Growth Curves")
 ```
 
-Clearly, most of Virginia's counties have relatively stable (one might say stagnant) population level. However, there five counties with population growing trends whose populations exceeded 300,000 by 2010. They are:
+Clearly, most of Virginia's counties have relatively stable (one might say stagnant) population levels. However, there five counties with population growing trends whose populations exceeded 300,000 by 2010. They are:
 
 ```{r,echo=FALSE,message=FALSE, warning=FALSE}
 growers <- virginia.pop %>%
@@ -265,4 +266,5 @@ growers <- virginia.pop %>%
   filter(periodyear == 2010) %>%
   arrange(desc(population)); growers
 ```
+
 
