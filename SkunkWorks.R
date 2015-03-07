@@ -12,7 +12,6 @@ library(plyr)
 library(mapproj)
 library(ggmap)
 
-setwd()
 getwd()
 
 #### jsonlite demo ####################
@@ -116,11 +115,65 @@ str(county.fips)
 county.fips$polyname == "virginia"
 
 ######### Boosting Algorithms ###########
-# "Model-based Boosting in R" - Hofner et.al.,
+# Paper Reference: "Model-based Boosting in R" - Hofner et.al.,
 library("mboost")
 library("TH.data")  # We will use the bodyfat data set
 library(dplyr)
 lm1 = lm(DEXfat ~ hipcirc + kneebreadth + anthro3a, data=bodyfat)
+lm2 <- lm(DEXfat ~., data=bodyfat)
+
+coef(lm1)
 summary(lm1)
-attributes(lm1)
+summary(lm2)
 plot(lm1$residuals)
+
+# Now let's try boosting with same predictors as lm1
+glm1 <- glmboost(DEXfat ~ hipcirc + kneebreadth + anthro3a, data=bodyfat)
+coef(glm1, off2int=TRUE)   # off2int adds the offset to the intercept
+coef(glm1)
+
+# Let's use all predictors -- using paste to set up formula
+preds <- names(bodyfat[, names(bodyfat) != 'DEXfat'])
+fm <- as.formula(paste('DEXfat~', paste(preds,collapse='+')))
+glm2 <- glmboost(fm, data=bodyfat, center=TRUE)
+coef(glm2, which='')  # The coef() by default only displays the selected variables, but can be forced to show all effects by specifying which=''
+mstop <- mstop(AIC(glm2))
+boost_control(mstop=mstop(AIC(glm2)))
+attributes(AIC(glm2))
+coef(glm2[mstop(AIC)])
+glm3 <- glmboost(fm, data=bodyfat, control=boost_control(mstop=45), center=TRUE)
+coef(glm3)
+coef(glm2)
+
+# Now boost applied to Logistic Regression
+# Wisconsin prognostic breast cancer. We first analyze this data as a binary prediction problem (recurrence vs. non-recurrence). We have many co-variates (we'll exclude time) with few observations. Thus, variable selection is an important issue. 
+# load data
+data(wpbc)
+glimpse(wpbc)
+nrow(wpbc); ncol(wpbc)
+# We can follow a classical logistic regression model via AIC in a stepwise algorithm as follows:
+
+# remove missing values and time covariate
+cc <- complete.cases(wpbc)
+wpbc2 <- wpbc[cc, colnames(wpbc) != 'time']
+# fit logistic regression model
+wpbc_nostep <- glm(status ~ ., data=wpbc2, family=binomial)
+wpbc_step <- step(glm(status ~ ., data=wpbc2, family=binomial()), trace=0)
+summary(wpbc_step)
+summary(wpbc_nostep)
+attributes(wpbc_step)
+pseudoR_step <- 1 - (wpbc_step$deviance/wpbc_step$null.deviance); pseudoR_step
+pseudoR_nostep <- 1 - (wpbc_nostep$deviance/wpbc_nostep$null.deviance); pseudoR_nostep
+logLik(wpbc_step) # The final model consists of 16 parameters
+# We want to compare this model with a logistic regression model fitted via gradient boosting.
+# Fit logistic regression model via gradient boosting
+ctrl <- boost_control(mstop=500)
+wpbc_glm <- glmboost(status ~ ., data=wpbc2, family=Binomial(), center=TRUE, control=ctrl)
+aic <- AIC(wpbc_glm, 'classical'); aic
+
+# We now restrict the number of boosting iterations to mstop=260 and obtain the estimated coefficients
+# Fit with new mstop
+wpbc_glm <- wpbc_glm[mstop(aic)]
+coef(wpbc_glm)
+attributes(wpbc_glm)
+plot(wpbc_glm$resid)

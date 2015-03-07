@@ -7,10 +7,12 @@ output: html_document
 
 ```{r,echo=FALSE,message=FALSE, results="hide", warning=FALSE}
 library(dplyr)
+library(knitr)
 library(ggvis)
 library(ggplot2)
 library(lubridate)
 setwd("/Users/stuart/DataSets/virginia/")
+opts_chunk$set(fig.align='center',comment=NA)
 bridges <- read.csv("bridge_inspections.csv", header=TRUE, quote="", row.names=NULL, stringsAsFactors = FALSE,strip.white = TRUE)  # special parameters set for this file
 pop <-read.table("population.txt", header=TRUE, sep="\t", stringsAsFactors = FALSE)
 bridges <-  tbl_df(bridges)
@@ -23,6 +25,8 @@ virginia.pop <- pop %>%
 ```
 
 # Introduction
+
+![35WBridgeCollapseImage1](/Users/stuart/DataSets/virginia/4110758.jpg)
 
 Quoting from a recent [Wired](http://www.wired.com/2015/01/time-fix-americas-infrastructure-heres-start/) article:
   
@@ -38,7 +42,7 @@ This analysis focuses on the state of Virginia's bridge infrastructure. Virginia
 # Data Set
 The data set used for this analysis was obtained from [Open Virginia](http://data.openva.com/dataset/bridge-inspections). The data was current as of January 2014. It consists of 21,232 observations (i.e., bridges). Below is a listing of the original data (prior to any modifications) explicitly identifying variables and their data type:
 
-```{r,echo=FALSE,message=FALSE, warning=FALSE}
+```{r,echo=FALSE,message=FALSE, warning=FALSE,results='markup'}
 glimpse(bridges)
 ```
 
@@ -50,14 +54,7 @@ Data analysis requires documenting any modifications made to a data set. Modific
 
 3. Removal of observations (entries): Some variables, though not sparsely populated, either did not have an entry or contained a "nonsense" value (e.g., -1 for a sufficiency rating). The observations corresponding these entries were removed. For example, the "Year.Built" entry resulted in removing 472 observations (`r round(472/21232 * 100,1)` percent). This is a concern since in those removed bridge observations, there may be some that are potentially structurally deficient. Given the low percentage, we removed these observations. A solution would be to travel to those particular areas and research county records; however, due to lack of resources associated with this IRAD, and need for accuracy, we removed them. 
 
-Factoid (that we may keep):
-Per the Virginia's DOT, of Virginia's 20,991 bridges and structures, as of May 24, 2013:
-
-    1,576 are listed as structurally deficient
-    3,314 are listed as functionally obsolete
-
 # Budget Planning
-
 
 ### Magnitude of Problem: Aging Bridge Infrastructure
 
@@ -179,9 +176,94 @@ The above plot, illustrates the magnitude of the problem:
 
 2. The total amount of Virginia bridges available for federal replacment funding, counting those bridges with a sufficiency rating of 50 or below is: `r nrow(subset(bridges_srnot0, Suffic.Rating.Numeric <= 50))` bridges, or `r round(nrow(subset(bridges_srnot0, Suffic.Rating.Numeric <= 50))/nrow(bridges_srnot0) * 100,2)` percent of Virginia's bridges.
 
-How can Virginia prioritize which bridges get fixed? Is it simply a matter of looking at the lowest sufficiency rating. Or should we look at the probability of lives potentially being lossed given a low sufficiency rating? One way to answer this latter question is to analyze the daily vehicle traffic crossing each of the deficient bridges. 
+Finally, we plot the bridges sufficiency rating versus the year the bridge was constructed.
 
-### Vehicle Traffic versus Sufficiency Rating - Playing the Odds?
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+bridges_redux <- subset(bridges_srnot0, select = c(Year.Built.Numeric, Avg.Daily.Traffic.Numeric, Suffic.Rating.Numeric) )
+```
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+ggplot(bridges_redux, aes(x=Year.Built.Numeric, y=Suffic.Rating.Numeric)) + 
+  geom_point() +
+  geom_hline(yintercept = c(50,80), linetype="dashed", colour="red") + 
+  labs(x="Year Built", y="Sufficiency Rating", title = "Sufficiency Rating versus Year Bridge Built")
+```
+
+The above chart is surprising because one would expect "newly" constructed bridges to have sufficiency ratings not eligible to receive replacement or rehabilitation funds. Clearly, this is not the case in Virginia. There are in fact (assuming the data set is correct) numerous bridges built after the year 2000 with sufficiency ratings less than 80 and 50. Our of curiosity, we list below, those jurisdictions with bridges constructed after the year 2000 and have sufficiency ratings less than 80. Because there are 74 jurisdictions meeting this criteria, we only list those with 8 or more bridges meeting this criteria.
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE, results='markup'}
+more_bad_bridges <- subset(bridges, Year.Built.Numeric > 2000 & Suffic.Rating.Numeric < 80)
+more_bad_bridges %>%
+  group_by(Jurisdiction) %>%
+  summarise(Bad_Bridges = n()) %>%
+  arrange(desc(Bad_Bridges)) %>%
+  filter(Bad_Bridges > 4)
+```
+
+What does this mean? Perhaps the contractors took "shortcuts" when constructing the bridges. Perhaps a bad specification was provided. Perhaps a recent storm impacted the bridge's integrity. Further investigation is required. 
+
+# Recommendations
+
+Up to this point, we have been statistically describing the state of Virginia's bridges, primarily using the Sufficiency Rating metric. As described, Virginia has many bridges that are eligible for refurbishment and replacement. Given the finite resources (primarily budgets) available, how would Virginia prioritize this work?
+
+### Which Bridges to Fix?
+
+There are numerous ways to prioritize which bridges get restored or replaced. One way would be to prioritize based on lowest sufficiency ratings (i.e., fix the bridges that are in the worse condition). But what if a bridge that has a median-level sufficiency rating supports a high daily traffic volume in an area with a trending increasing annual population. This bridge's sufficiency rating would likely decline more rapidly and would have a much larger economic and human fatality/injury impact than a really "bad" bridge serving a rural population with a low traffic volume - purely looking at the numbers. 
+
+As a first approximation to prioritize the restoration and replacement of bridges, we'll focus on those counties with larger populations, population growth, and significant commuters with low bridge sufficiency ratings. 
+
+#### Population Centers and Growth
+
+Which Virginia counties have the largest populations and have a trending growing population? 
+
+Below is a figure that plots each Virginia county's population from 1970 to 2012. 
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+ggplot(virginia.pop, aes(x=periodyear, y=population, colour=areaname,group=areaname)) +
+  geom_line() +
+  theme(legend.position="none") +
+  ggtitle("Annual Virginia County Population Growth Curves")
+```
+
+From the above figure, most of Virginia's 95 counties have relatively low, and stable population levels. But, there five counties with growing populations that in 2010, exceeded 300,000. They are:
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+growers <- virginia.pop %>%
+  filter(population > 300000) %>%
+  select(areaname, periodyear, population) %>%
+  filter(periodyear == 2010) %>%
+  arrange(desc(population)); growers
+```
+
+Following our logic, how many bridges exist in these counties have a sufficiency rating less than 50 (justifying replacement)? From the table below, we see there are over 100 bridges in this category.
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+top.five <- bridges %>%
+  filter(Jurisdiction == 'Fairfax County' | Jurisdiction == 'Prince William County' | Jurisdiction == 'Chesterfield County' | Jurisdiction == 'Loudoun County' | Jurisdiction == 'Henrico County') %>%
+  filter(Suffic.Rating.Numeric < 50) %>%
+  group_by(Jurisdiction) %>%
+  summarise(Bridges.SuffRating.lt.50 = n()) %>%
+  arrange(desc(Bridges.SuffRating.lt.50)); top.five
+```
+
+#### Bridge Average Daily Traffic Volume
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+
+ggplot(bridges, aes(x=Avg.Daily.Traffic.Numeric)) + 
+  geom_histogram(binwidth=10000, fill="red", colour="black") +
+  labs(x="Average Daily Bridge Traffic (binwidth = 50)", y="Bridge Count", title = "Distribution of Virginia Bridge Average Daily Traffic")
+```
+
+```{r, echo=FALSE, message=FALSE, warning=FALSE}
+boxplot(bridges$Avg.Daily.Traffic.Numeric,
+        pars=list(boxwex = 0.4),
+        ylab = "Average Daily Traffic",
+        main = "Box-Plot of Bridges Average Daily Traffic")
+rug(jitter(bridges$Avg.Daily.Traffic.Numeric, amount = 0.2),side=2,col="red")
+```
+
+#### Vehicle Traffic versus Sufficiency Rating - Playing the Odds?
 
 A quick correlation/variance analysis highlighted an interesting relationship between a bridge's average daily traffic pattern and its' sufficiency rating. This relationship (using a Pearson correlation) was calculated to be slightly negative (see below). One could rationalize that due to "wear and tear" of a higher traffic volume, bridges would be expected to have  a lower sufficiency rating. Or, a higher traffic average traffic volume would lead to a bridge's sufficiency rating decreasing at a faster rate than one experiencing a lower traffic volume. We leave this as a potential future modeling exercise. 
 
@@ -189,7 +271,7 @@ A quick correlation/variance analysis highlighted an interesting relationship be
 bridges_redux <- subset(bridges_srnot0, select = c(Year.Built.Numeric, Avg.Daily.Traffic.Numeric, Suffic.Rating.Numeric) )
 ```
 
-```{r,echo=FALSE,message=FALSE, warning=FALSE}
+```{r,echo=FALSE,message=FALSE, warning=FALSE, results='markdown'}
 cor(bridges_redux, use="complete.obs")
 ```
 
@@ -213,58 +295,3 @@ bad_bridges %>%
   summarise(Bad_Bridges = n()) %>%
   arrange(desc(Bad_Bridges))
 ```
-
-Finally, we plot the bridges sufficiency rating versus the year the bridge was constructed.
-
-```{r,echo=FALSE,message=FALSE, warning=FALSE}
-ggplot(bridges_redux, aes(x=Year.Built.Numeric, y=Suffic.Rating.Numeric)) + 
-  geom_point() +
-  geom_hline(yintercept = c(50,80), linetype="dashed", colour="red") + 
-  labs(x="Year Built", y="Sufficiency Rating", title = "Sufficiency Rating versus Year Bridge Built")
-```
-
-The above chart was surprising because one would expect a "newly" constructed bridge to have sufficiency ratings eligible to receive replacement or rehabilitation funds. Clearly, this is not the case in Virginia. Where are these deficient bridges located? We will identify those jurisdictions with bridges constructed after the year 2000 and have sufficiency ratings less than 80. Because there are 74 jurisdictions meeting this criteria, we only list those with 8 or more bridges meeting this criteria.
-
-```{r,echo=FALSE,message=FALSE, warning=FALSE}
-more_bad_bridges <- subset(bridges, Year.Built.Numeric > 2000 & Suffic.Rating.Numeric < 80)
-more_bad_bridges %>%
-  group_by(Jurisdiction) %>%
-  summarise(Bad_Bridges = n()) %>%
-  arrange(desc(Bad_Bridges)) %>%
-  filter(Bad_Bridges > 4)
-```
-
-What does this mean? Perhaps the contractors took "shortcuts" when constructing the bridges. Perhaps a bad specification was provided. Perhaps a recent storm impacted the bridge's integrity. Further investigation is required. 
-
-# Recommendations
-
-### Which Bridges to Fix
-
-Several methodologies exist to help prioritize which bridges get restored or replaced first. Clearly, one approach is to base prioritization on lowest sufficiency ratings (i.e., fixes the bridges that are in the worse condition). A good first cut. However, what if a bridge that has a median-level sufficiency rating supports traffic in an area where an increasing in population and resulting commuter traffic has a high traffic load. This bridge's condition would decline more rapidly, and if collapses, have a large economic, not to mention mortality impact than a really bad bridge serving a very rural population. 
-
-Given the latter argument, we'll synthesize population and commuter data with bridge sufficiency ratings. 
-
-#### Population Centers and Growth
-
-Where are the largest Virginia population centers? Which ones are have a trending growing population? Perhaps these are the counties upon which to focus - give that they have bridges with sufficiency ratings indicating rehabilitation or replacement. 
-
-Below is a figure that plots each Virginia county's population from 1970 to 2012. 
-
-```{r,echo=FALSE,message=FALSE, warning=FALSE}
-ggplot(virginia.pop, aes(x=periodyear, y=population, colour=areaname,group=areaname)) +
-  geom_line() +
-  theme(legend.position="none") +
-  ggtitle("Annual Virginia County Population Growth Curves")
-```
-
-Clearly, most of Virginia's counties have relatively stable (one might say stagnant) population levels. However, there five counties with population growing trends whose populations exceeded 300,000 by 2010. They are:
-
-```{r,echo=FALSE,message=FALSE, warning=FALSE}
-growers <- virginia.pop %>%
-  filter(population > 300000) %>%
-  select(areaname, periodyear, population) %>%
-  filter(periodyear == 2010) %>%
-  arrange(desc(population)); growers
-```
-
-

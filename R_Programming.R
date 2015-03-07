@@ -20,7 +20,7 @@ roll2 <- function(die = 1:6){   # Note that an argument assignment must be an '=
 z <- 1:1000
 foo = vector()
 for(i in z){ 
-  foo <- c(foo, roll2())
+  foo <- c(foo, roll())
 }
 foo
 qplot(foo, binwidth=1)
@@ -39,6 +39,20 @@ roll_weighted <- function() {
 }
 rolls <- replicate(10000,roll_weighted())
 qplot(rolls, binwidth=1)
+
+
+
+# Marbles in a jar game
+marbles <- c('cats-eye','moonie','solid','sparkle')
+marble.weights <- c(3/6, 1/6, 1/6, 1/6)
+sample(marbles, size=1, replace=TRUE)
+
+selection <- replicate(10000, sample(marbles,size=1, prob=marble.weights, replace=TRUE))
+selection.df <- data.frame(selection)
+
+ggplot(selection.df, aes(x=selection, fill=selection)) + geom_bar()
+
+
 
 ### Part II Playing Cards
 # Design a deck of playing cards that we can shuffle and deal from

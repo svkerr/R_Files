@@ -3,6 +3,7 @@
 setwd("/Users/stuart/R_Files/")
 library(dplyr)
 library(ggplot2)
+library(mboost)  # for when implementing boosting algorithms
 library(MASS)    #important if doing confint of logistic regression
 ## ############Book: Extending the Linear Model with R ##################
 library(faraway)
@@ -98,7 +99,6 @@ exp(coef(fit1))     # odds ratios corresponding to intercept (ignored) and anter
 # the exponentiated coefficient gives the odds ratio for that particular regression coefficient. In this case: A patient having an anterior site MI has approximately a two and a quarter greater odds of death within 48 hours of admission than does a patient sustaining an inferior site MI.
 confint(fit1)
 exp(confint(fit1))  # odds ratio
-
 # Predictions of probability: Construct model but don't exponentiate:
 # We can determine the probability of death based on having an anterior as well as inferior MI. We model the data in normal fashion, but without exponentiating the coefficients. 
 eta = coef(fit1)[1] + coef(fit1)[2]* 1  ; eta  # predictor for anterior=1, this is log(odds)

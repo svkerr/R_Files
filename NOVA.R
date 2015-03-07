@@ -119,7 +119,8 @@ growers <- virginia.pop %>%
   filter(periodyear == 2010) %>%
   arrange(desc(population)); growers
 
-bridges_county <- subset(bridges, grepl(" County", bridges$Jurisdiction, perl=TRUE))
+
+
 pop %>%
   select(statename,areatyname,areaname,periodyear,periodtype, population) %>%
   filter(areatyname == "County" & statename == "Virginia" & periodtype ==1) %>%
@@ -233,6 +234,9 @@ summary(bridges$Year.Built.Numeric)
 
 table(bridges$Year.Recnst.Fed.Numeric)
 
+# Note: if you just want County bridges:
+bridges_county <- subset(bridges, grepl(" County", bridges$Jurisdiction, perl=TRUE))
+
 # Which year had most bridges built
 bigbuildyear <- bridges %>%
   group_by(Year.Built.Numeric) %>%
@@ -262,12 +266,23 @@ ggplot(bridges, aes(x=Jurisdiction)) +
   geom_histogram(binwidth=5, fill="red", colour="black") +
   labs(x="Jurisdiction", y="Bridge Count", title = "Distribution by County Virginia Bridges")
 
-
 bridges %>%
   filter(Jurisdiction == "Fairfax County") %>%
   group_by(Year.Built.Numeric) %>%
   summarise(bridges = n()) %>%
   arrange(desc(bridges))
+
+# Find the number of bridges in Fairfax County that are below sufficiency standards
+bridges %>%
+  filter(Jurisdiction == "Fairfax County") %>%
+  filter(Suffic.Rating.Numeric < 50) %>%
+  summarise(bridges.lt.50 = n())
+
+bridges %>%
+  filter(Jurisdiction == "Prince William County") %>%
+  filter(Suffic.Rating.Numeric < 50) %>%
+  summarise(bridges.lt.50 = n())
+
 
 fairfax.bridges <- subset(bridges, Jurisdiction == "Fairfax County")
 
@@ -320,6 +335,15 @@ bridges %>%
 bridges %>%
   filter(Suffic.Rating.Numeric <= 80) %>%
   summarise(badbridges = n())
+
+# From graphic showing top trnding populations, which ones have SR < 50
+top.five <- bridges %>%
+  filter(Jurisdiction == 'Fairfax County' | Jurisdiction == 'Prince William County' | Jurisdiction == 'Chesterfield County' | Jurisdiction == 'Loudoun County' | Jurisdiction == 'Henrico County') %>%
+  filter(Suffic.Rating.Numeric < 50) %>%
+  group_by(Jurisdiction) %>%
+  summarise(Bridges.SuffRating.lt.50 = n()) %>%
+  arrange(desc(Bridges.SuffRating.lt.50)); top.five
+
 
 ########## Which county has the most bridges
 bridges %>%
@@ -374,6 +398,17 @@ summary(suff.mod1)
 confint(suff.mod1)
 exp(coef(suff.mod1))
 
+### Bridge Traffic Analysis --- Fix ggplot for bridges data
+
+ggplot(bridges, aes(x=Avg.Daily.Traffic.Numeric)) + 
+  geom_histogram(binwidth=10000, fill="red", colour="black") +
+  labs(x="Average Daily Bridge Traffic (binwidth = 50)", y="Bridge Count", title = "Distribution of Virginia Bridge Average Daily Traffic")
+
+boxplot(bridges$Avg.Daily.Traffic.Numeric,
+        pars=list(boxwex = 0.4),
+        ylab = "Average Daily Traffic",
+        main = "Box-Plot of Bridges Average Daily Traffic")
+rug(jitter(bridges$Avg.Daily.Traffic.Numeric, amount = 0.2),side=2,col="red")
 
 ############# Income Dataset ######################################################
 glimpse(inc)
