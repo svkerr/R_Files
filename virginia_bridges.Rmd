@@ -13,6 +13,7 @@ library(ggplot2)
 library(lubridate)
 setwd("/Users/stuart/DataSets/virginia/")
 opts_chunk$set(fig.align='center',comment=NA)
+# Read in data files
 bridges <- read.csv("bridge_inspections.csv", header=TRUE, quote="", row.names=NULL, stringsAsFactors = FALSE,strip.white = TRUE)  # special parameters set for this file
 pop <-read.table("population.txt", header=TRUE, sep="\t", stringsAsFactors = FALSE)
 bridges <-  tbl_df(bridges)
@@ -30,33 +31,35 @@ virginia.pop <- pop %>%
 
 Quoting from a recent [Wired](http://www.wired.com/2015/01/time-fix-americas-infrastructure-heres-start/) article:
   
-In the United States, one in 10 bridges are structurally deficient, meaning the bridge has a significant defect that requires reduced loads, reduced speed limits, or rehabilitation. Another 14 percent of the nation’s 607,380 bridges are considered “functionally obsolete,” meaning they are no longer suited to their current task -- yet are still in use.
+In the United States, one in 10 bridges are "structurally deficient", meaning the bridge has a significant defect that requires reduced loads, reduced speed limits, or rehabilitation. Another 14 percent of the nation’s 607,380 bridges are considered “functionally obsolete,” meaning they are no longer suited to their current task -- yet are still in use.
 
-As recently as January 2015, an overpass collapsed on I-75 in Cincinnati as it was being dismantled, killing a construction worker and gravely injuring a truck driver. It remains to be seen if the collapse was due to the age and condition of the span, or was an unfortunate demolition accident, but it underscores the risks. More well known was the collapse of the I-35 West Mississippi River Bridge in Minneapolis seven years ago. Thirteen people were killed and 145 injured. The bridge had been deemed structurally deficient in 1990, though the collapse was attributed to a design flaw that was exacerbated by an increase in bridge load over time.
+A well publicized incident was the collapse of the I-35 West Mississippi River Bridge in Minneapolis seven years ago. Thirteen people were killed and 145 injured. The bridge had been deemed structurally deficient in 1990, though the collapse was attributed to a design flaw that was exacerbated by an increase in bridge load over time.
 
-The American Society of Civil Engineers says the US needs massive investments in all essential infrastructure, from bridges and airports to dams and railways. According to the society’s most recent infrastructure report card, the US earns a D+ for its infrastructure. It is, in a word, a mess. This is about much more than potholes. This is about keeping the economy, literally and figuratively, moving. Much of the economic boom the United States has experienced over the last 50 years is because the network of highways makes it easy to ship goods. If it continues into a state of disrepair, the long-term hit to our economy could be catastrophic.
+The American Society of Civil Engineers says the US needs massive investments in all essential infrastructure, from bridges and airports to dams and railways. According to the society’s most recent infrastructure report card, the US earns a D+ for its infrastructure. This is about much more than potholes. This is about keeping an economy, literally and figuratively, moving. A significant part of the economic boom that the United States has experienced over the last 50 years is because the network of highways makes it easy to ship goods. If the current trending of disrepair continues, the long-term impact to our economy could be catastrophic.
 
 #### Study Goal
-This analysis focuses on the state of Virginia's bridge infrastructure. Virginia (particularly Northern VA) is experiencing population growth, fueled by a strong local economy, yet, it has a commensurate aging infrastructure. How sound is Virginia's existing bridge infrastructure? How many bridges are in need of repair? Are highly traveled bridges sound? How much will fixing the infrastructure cost? A goal of this analysis is to statistically describe the state of Virginia's bridge infrastructure so that an objective assessment regarding the magnitude of safety issues and budget impacts can support a decision making process. 
+This analysis focuses on the state of Virginia's bridge infrastructure. Virginia (particularly Northern VA) is experiencing population growth. However, the state has an aging bridge infrastructure. So, several questions need to be asked. How sound is Virginia's existing bridge infrastructure? How many bridges are in need of repair? Are highly traveled bridges sound? How much will fixing the infrastructure cost? A goal of this analysis is twofold: 1) Identify (by county) and statistically describe the number of "unsafe" bridges and 2) Given that there exist finite resources to repair and replace bridges, establish a priority method based upon populations and average daily traffic flow over bridges so that the worst and most traveled bridges get higher priority.  Though we generalize the location of these bridges by county, we have data that can further identify the bridge by Route, Crossing and Virginia Structure Number. 
 
 # Data Set
-The data set used for this analysis was obtained from [Open Virginia](http://data.openva.com/dataset/bridge-inspections). The data was current as of January 2014. It consists of 21,232 observations (i.e., bridges). Below is a listing of the original data (prior to any modifications) explicitly identifying variables and their data type:
+Two openly available data sets were fundamental to this analysis. The "bridge inspection" data set listed below, was obtained from [Open Virginia](http://data.openva.com/dataset/bridge-inspections). The bridge inspection data was current as of January 2014. It consists of 21,232 bridges. Below is a listing of the original data (prior to any modifications) explicitly identifying variables and their data type:
 
 ```{r,echo=FALSE,message=FALSE, warning=FALSE,results='markup'}
 glimpse(bridges)
 ```
 
-Data analysis requires documenting any modifications made to a data set. Modifications often take the form of "cleaning" the data, in order to make the values compatible for statistical analysis and modeling. Though the modifications we made are documented in the code base, a few highlights are mentioned here:
+The second data set, a census data collection, was obtained from the [Virginia Labor Market Information](https://data.virginialmi.com/vosnet/Default.aspx) website. 
 
-1. Removal of variables:  Several sparsely populated variables were removed.  Keeping them would have resulted in an unbalanced data set. To identify the specific variables removed, one can refer to the code base associated with this analysis. 
+Data analysis inevitably requires "data munging" often taking the form of "cleaning" the data, in order to make the values compatible for statistical analysis and modeling. Though the modifications we made are documented in the code base, a few highlights are mentioned here:
+
+1. Removal of variables:  Sparsely populated variables were removed.  Keeping them would have resulted in an unbalanced data set. To identify the specific variables removed, one can refer to the code base associated with this analysis. 
 
 2. Conversion of variable value types: All value types entered into the original data set were character values (e.g., year built and various metrics). These were converted to an appropriate numerical type.
 
 3. Removal of observations (entries): Some variables, though not sparsely populated, either did not have an entry or contained a "nonsense" value (e.g., -1 for a sufficiency rating). The observations corresponding these entries were removed. For example, the "Year.Built" entry resulted in removing 472 observations (`r round(472/21232 * 100,1)` percent). This is a concern since in those removed bridge observations, there may be some that are potentially structurally deficient. Given the low percentage, we removed these observations. A solution would be to travel to those particular areas and research county records; however, due to lack of resources associated with this IRAD, and need for accuracy, we removed them. 
 
-# Budget Planning
+# How Many?
 
-### Magnitude of Problem: Aging Bridge Infrastructure
+### Aging Bridge Infrastructure
 
 <!--- Before doing analysis, transform the bridges df -->
 
@@ -119,11 +122,11 @@ rug(jitter(bridges$Year.Built.Numeric, amount = 0.2),side=2,col="red")
 From the box plot and summary above, we see that 25% of the bridges (`r 0.25 * nrow(bridges)` bridges) were built prior to 1948 (greater than or equal to 67 years old). We see several outliers (beyond 1.5 * IQR), in fact, there exist `r nrow(subset(bridges, Year.Built.Numeric <= 1900))` bridges built prior to or within the year 1900. 50% of bridges (`r 0.25 * nrow(bridges)` bridges) were built prior to 1968 (47 years old or greater). The median and mean are nearly equivalent. 
 This distribution begins to highlight the potentially obsolete and dangerous state of Virginia's bridges. However, it's only scratching the surface. Within the data set, are data that contains the dates of Federal and State bridge reconstruction efforts per bridge. So, a bridge may have a construction date of 1927, but may have experience bridge reconstruction efforts to fix any defects and make it suitable for increased traffic volume and loads. So how can we get a good overall metric describing overall bridge health - and is it available within the available data set?
 
-# Safety
+# How Safe?
 
 ### Bridge Inspections and Ratings Background
 
-On August 1, 2007, the I-35W highway bridge in Minnesota collapsed, where 111 vehicles were on the bridge at the time, 11 people died, and 145 people were injured. Following this collapse, a national discussion focused on bridges being classified as structurally deficient and functionally obsolete. Of course, these discussions have led to confusion as to the actual meaning and definitions. This led to defining a bridge's "Sufficiency Rating."
+On August 1, 2007, the I-35W highway bridge in Minnesota collapsed, where 111 vehicles were on the bridge at the time, 11 people died, and 145 people were injured. An image from this collapse is at the beginning of this report. Following this collapse, a national discussion focused on bridges being classified as structurally deficient and functionally obsolete. But this led to confusion as to the actual meaning and definitions. This then led to a standard defintion of a bridge's "Sufficiency Rating."
 
 NOTE: According to the [Virginia Department of Transportation (VDOT)](http://www.virginiadot.org/info/resources/bridge_defs.pdf), VDOT exceeds the Federally established National Bridge Inspection (NBI) standards by inspecting and documenting all bridges regardless of their length and all culverts having an opening greater than 36 square feet. (NOTE: Most of the narrative text is lifted from the above website)
 
@@ -202,19 +205,19 @@ more_bad_bridges %>%
 
 What does this mean? Perhaps the contractors took "shortcuts" when constructing the bridges. Perhaps a bad specification was provided. Perhaps a recent storm impacted the bridge's integrity. Further investigation is required. 
 
-# Recommendations
+# Where Do We Start?
 
-Up to this point, we have been statistically describing the state of Virginia's bridges, primarily using the Sufficiency Rating metric. As described, Virginia has many bridges that are eligible for refurbishment and replacement. Given the finite resources (primarily budgets) available, how would Virginia prioritize this work?
+Up to this point, we have been statistically describing the state of Virginia's bridges; how many, how old, and using the  Sufficiency Rating metric, how safe.  As described above, Virginia has many bridges that are eligible for refurbishment and replacement. Given finite resources (primarily budgets), how can Virginia prioritize this work?
 
 ### Which Bridges to Fix?
 
-There are numerous ways to prioritize which bridges get restored or replaced. One way would be to prioritize based on lowest sufficiency ratings (i.e., fix the bridges that are in the worse condition). But what if a bridge that has a median-level sufficiency rating supports a high daily traffic volume in an area with a trending increasing annual population. This bridge's sufficiency rating would likely decline more rapidly and would have a much larger economic and human fatality/injury impact than a really "bad" bridge serving a rural population with a low traffic volume - purely looking at the numbers. 
+There are numerous ways to prioritize which bridges get restored or replaced. One way would be to prioritize based on lowest sufficiency ratings (i.e., fix the bridges that are in the worse condition). But what if a bridge that has a median-level sufficiency rating supports a high daily traffic volume in an area with an increasing annual population. This bridge's sufficiency rating would likely decline more rapidly and would have a much larger economic and human fatality/injury impact than a really "bad" bridge serving a rural population with a low traffic volume - purely looking at the numbers. 
 
-As a first approximation to prioritize the restoration and replacement of bridges, we'll focus on those counties with larger populations, population growth, and significant commuters with low bridge sufficiency ratings. 
+We will base the priority of bridge repairs and replacements upon populations and traffic volume. We'll focus on those counties with larger populations, population growth, and significant commuters with low bridge sufficiency ratings. Then we will identify those bridges with low Sufficiency Ratings and high traffic volume. 
 
 #### Population Centers and Growth
 
-Which Virginia counties have the largest populations and have a trending growing population? 
+Which Virginia counties have the largest populations and have a trending growing population? And how many bridges in poor condition exist in these counties?
 
 Below is a figure that plots each Virginia county's population from 1970 to 2012. 
 
@@ -275,7 +278,7 @@ bridges_redux <- subset(bridges_srnot0, select = c(Year.Built.Numeric, Avg.Daily
 cor(bridges_redux, use="complete.obs")
 ```
 
-We now make a scatter plot of the average daily traffic of the bridge count versus the sufficiency rating, wehre we again place vertical dashed lines at sufficiency ratings of 50 and 80. We also provide a horizontal dashed line correspoding the mean average daily traffic of `r round(mean(bridges_srnot0$Avg.Daily.Traffic.Numeric),2)` cars. 
+We now make a scatter plot of the average daily traffic of the bridge count versus the sufficiency rating, where we again place vertical dashed lines at sufficiency ratings of 50 and 80. We also provide a horizontal dashed line correspoding the mean average daily traffic of `r round(mean(bridges_srnot0$Avg.Daily.Traffic.Numeric),2)` cars. 
 
 ```{r,echo=FALSE,message=FALSE, warning=FALSE}
 meantraffic <- mean(bridges_redux$Avg.Daily.Traffic.Numeric)
@@ -286,7 +289,12 @@ ggplot(bridges_redux, aes(x=Suffic.Rating.Numeric, y=Avg.Daily.Traffic.Numeric))
   labs(x="Bridge Sufficiency Rating", y="Average Daily Traffic", title = "Daily Traffic vs Bridge Sufficiency")
 ```
 
-The above scatter plot clearly shows a significant number of bridges experiencing some of the highest average daily traffic that are eligible for rehabilitation funding. Where are these bridges located? Let's identify the bridge locations (by Jurisdiction) with an average daily traffic volume exceeding 100,000 vehicles per day (well above the mean traffic volume) and a sufficiency rating less than 80.
+The above scatter plot is perhaps the most alarming plot in this entire report. It identifies a significant number of bridges that are experiencing some of Virginia's highest average daily traffic and yet are eligible for rehabilitation funding. Let's identify bridges that have an average daily traffic volume exceeding 100,000 vehicles per day (well above the mean traffic volume) and a sufficiency rating less than 80. There are `r nrow(subset(bridges, Avg.Daily.Traffic.Numeric > 100000 & Suffic.Rating.Numeric < 80))` bridges that meet this criteria. In this analysis, we included within the Jurisdiction category, counties, and Virginia's 39 independent cities. These independent cities are considered county-equivalents for Virginia's census purposes. 
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+worst.bridge <- subset(bridges, Avg.Daily.Traffic.Numeric > 290000) %>%
+  select(Route, Route.Name)
+```
 
 ```{r,echo=FALSE,message=FALSE, warning=FALSE}
 bad_bridges <- subset(bridges, Avg.Daily.Traffic.Numeric > 100000 & Suffic.Rating.Numeric < 80)
@@ -295,3 +303,5 @@ bad_bridges %>%
   summarise(Bad_Bridges = n()) %>%
   arrange(desc(Bad_Bridges))
 ```
+
+As a final note, the bridge in the above figure with an average daily traffic volume exceeding 290,000 vehicles and a sufficiency rating less than 80 is located in the independent city of Chesapeake on Route `r worst.bridge `.
