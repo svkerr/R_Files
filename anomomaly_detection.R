@@ -32,16 +32,30 @@ res2$plot
 
 # Wikipedia analysis
 page <- "Fairfax VA"
+page2 <- "ISIS"
 raw_data <- getURL(paste("http://stats.grok.se/json/en/latest90/", page, sep=""))
+raw_data2 <- getURL(paste("http://stats.grok.se/json/en/latest90/", page2, sep="")) 
+
 data <- fromJSON(raw_data)
+data2 <- fromJSON(raw_data2)
+
 views <- data.frame(timestamp=paste(names(data$daily_views), " 12:00:00", sep=""), stringsAsFactors=F)
 views$count <- data$daily_views
 views$timestamp <- as.POSIXlt(views$timestamp) # Transform to POSIX datetime
 views <- views[order(views$timestamp),]
+
+views2 <- data.frame(timestamp=paste(names(data2$daily_views), " 12:00:00", sep=""), stringsAsFactors=F)
+views2$count <- data2$daily_views
+views2$timestamp <- as.POSIXlt(views2$timestamp) # Transform to POSIX datetime
+views2 <- views2[order(views2$timestamp),]
+
 ggplot(views, aes(timestamp, count)) + geom_line() + scale_x_datetime() + xlab("") + ylab("views")
 # Now, let’s look for anomalies. The usual way would be to feed a dataframe with a date-time and a value column into the AnomalyDetection function AnomalyDetectionTs(). But in this case, this doesn’t work because our data is much too coarse. It doesn’t seem to work with data on days. So, we use the more generic function AnomalyDetectionVec() that just needs the values and some definition of a period. In this case, the period is 7 (= 7 days for one week):
-res3 <- AnomalyDetectionVec(views$count, max_anoms=0.05, direction='both', plot=TRUE, period=7)
+res3 <- AnomalyDetectionVec(views$count, max_anoms=0.10, direction='both', plot=TRUE, period=7)
 res3$plot
 res3$anoms
 views[52,]
 
+res4 <- AnomalyDetectionVec(views2$count, max_anoms=0.10, direction='both', plot=TRUE, period=7)
+res4$plot
+subset(views2, count > 25000)

@@ -1,0 +1,81 @@
+---
+title: "NOVA - Wikipedia Indicators"
+author: "svk"
+date: "March 12, 2015"
+output: html_document
+---
+
+
+```{r,echo=FALSE, message=FALSE, results="hide", warning=FALSE}
+setwd("/Users/stuart/R_Files")
+
+# Install packages
+library(knitr)
+library(dplyr)
+library(RJSONIO)
+library(RCurl)
+library(ggplot2)
+
+library(devtools)
+library(AnomalyDetection)
+```
+
+```{r,echo=FALSE,message=FALSE, results="hide", warning=FALSE}
+page1 <- "Fairfax VA"
+page2 <- "ISIS"
+raw_data1 <- getURL(paste("http://stats.grok.se/json/en/latest90/", page1, sep=""))
+raw_data2 <- getURL(paste("http://stats.grok.se/json/en/latest90/", page2, sep="")) 
+
+data1 <- fromJSON(raw_data1)
+data2 <- fromJSON(raw_data2)
+
+views1 <- data.frame(timestamp=paste(names(data1$daily_views), " 12:00:00", sep=""), stringsAsFactors=F)
+views1$count <- data1$daily_views
+views1$timestamp <- as.POSIXlt(views1$timestamp) # Transform to POSIX datetime
+views1 <- views1[order(views1$timestamp),]
+
+views2 <- data.frame(timestamp=paste(names(data2$daily_views), " 12:00:00", sep=""), stringsAsFactors=F)
+views2$count <- data2$daily_views
+views2$timestamp <- as.POSIXlt(views2$timestamp) # Transform to POSIX datetime
+views2 <- views2[order(views2$timestamp),]
+```
+#### Idea
+
+Sue is currently 'mining' localized (Northern Virginia oriented) Twitter tweets. Twitter is more-or-less categorized as a social networking platform, even though it has been used in large-scale disaster emergency responses, revolutionary uprisings, etc., 
+
+A thought was to do something similar with a more "macro-scale" online platform. The brief demonstration below data mines Wikipedia page searches. Wikipedia is more known as a "reference" resource that covers a wide range of topics. 
+
+#### Method and Tools
+Using a Wikipedia API and key words (e.g., "Fairfax VA"), we extract the number of daily page counts for a time span of 90 days. We then employ Twitter's open-sourced [anomaly detection algorithm](https://www.usenix.org/system/files/conference/hotcloud14/hotcloud14-vallis.pdf) that has been developed as an R library.  An anomaly detection algorithm is used to identify long and short term anomalies. Given our experimental window of 90-days and a very coarse daily time-binning, the short-term anomalies will be identified. 
+
+#### A Macro-level Search 
+
+We used "ISIS" as our initial key phrase to extract a 90-day page count and feed the results into the anomaly algorithm. The usual way would be to feed a dataframe with a date-time and a value column into the Anomaly Detection function `AnomalyDetectionTs()`. But in this case, this doesn’t work because our data is much too coarse.  So, we use the more generic function `AnomalyDetectionVec()` that just needs the values and some definition of a period. In this case, the period is 7 (= 7 days for one week). We get the following results. Given this is a prototype we skimp on the labeling, but the major vertical divisions represent weeks where the end date is `r date()`. 
+
+Focusing on the most significant anomaly, the anomaly associated with the largest spike is 4 February 2015. After a brief Google search, this seems to correspond to the time when ISIS burned alive a Jordian fighter pilot and Jordan responded by executing 2 ISIS prisoners. 
+
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+res2 <- AnomalyDetectionVec(views2$count, max_anoms=0.10, direction='both', plot=TRUE, period=7)
+res2$plot
+```
+
+
+So, let's judge that one a success, and extract from Wikipedia a more geographically refined page search term. In this case we count "Fairfax VA". 
+
+Though there are several anomalies, we again focus on the most significant one -- 17 February 2015.  Again, after a Google search, the date corresponds to: 
+
+1. a snow storm in the Fairfax area (schools, transportation, and government offices impacted)
+2. the Fairfax County Board of Supervisors was to meet and present the proposed 2016 budget
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+res1 <- AnomalyDetectionVec(views1$count, max_anoms=0.10, direction='both', plot=TRUE, period=7)
+res1$plot
+```
+
+#### Summary
+
+A very limited experiment was conducted. It gives an indication that Using Wikipedia, a reference platform, could be exploited to detect anomalous events at international and local 'levels.'  
+
+
+

@@ -180,3 +180,4 @@ countynames.fin <- sapply(countylist, "[", 2)
 countylist2 <- strsplit(countynames.fin, ":")  # Need to do strsplit twice because map() contains "," and ":" as seps
 countynames2.fin <- sapply(countylist2, "[", 1)
 countynames2.fin
+
