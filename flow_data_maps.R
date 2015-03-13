@@ -121,6 +121,7 @@ map("state", region="virginia", lwd=1, col="red")      # Default projection is r
 map('county', 'virginia', col = palette())             # OR i can map virginia with counties outlined
 
 points(acc_va2001$longitud, acc_va2001$latitude, col="red", bg="#000000", pch=21, cex=0.20)
+points(acc_va2012$LONGITUD, acc_va2012$LATITUDE, col="red", bg="#000000", pch=21, cex=0.20)
 
 # You don't have to stick with the default map() rectangular projection. For example, you can use the Albers projection, as shown below. Notice that mapproject() is used in points(). This transforms the latitude and longitude coordinates so that they are placed properly on the new space.
 # Albers projection
@@ -136,19 +137,45 @@ points(mapproject(acc_va2001$longitud, acc_va2001$latitude), col="red", bg="#000
 map("county", region="virginia", proj="albers", param=c(39,45), lwd=1, col="black")
 points(mapproject(acc_va2013$LONGITUD, acc_va2013$LATITUDE), col="red", bg="#00000030", pch=21, cex=0.20)
 
-## Applying the same ideas to Choropleth maps
+### Applying the same ideas to Choropleth maps
 # Instead of point maps, you want to aggregate by state and map with choropleth. The logic is still the same: Learn to make one map and then make more of them.
 
 # It might be useful to map the number of accidents by state, but instead of absolute counts, let's look at number of accidents per million population. 
 # NOTE: the below data munging could be done using dplyr() -- maybe do similar calcs later
 # NOTE: Want to do the same thing tutorial does but for virginia counties...
+# Read in accident files:
+acc <- read.dbf("accident2001.dbf")
+acc2013 <- read.dbf("accident2013.dbf")
+acc2012 <- read.dbf("accident2012.dbf")
+
+table(acc$STATE)   # Note the FIPS code for each STATE
+# Isolate accident files to Virginia only
+acc_va2001 <- subset(acc, STATE==51)  # subset the acc dataframe to get only virginia
+acc_va2013 <- subset(acc2013, STATE==51)
+acc_va2012 <- subset(acc2012, STATE==51)
+
+# Read in population files (note for VA counties, read from different dir and munging required)
 statepop <- read.csv("states.csv")
-# DO SAME THING FOR FOR COUNTYPOP USING CODE IN POP SECTION OF NOVA.R (SEE VA.COUNTY.POP2012)
 statecnts <- count(acc$STATE)
 states <- merge(statepop, statecnts, by.x="code", by.y="x")
 glimpse(states)
 states$accrate <- states$freq/(states$pop2012/1000000)
+
+countypop <-read.table("/Users/stuart/DataSets/virginia/population.txt", header=TRUE, sep="\t", stringsAsFactors = FALSE)
+countypop <- subset(countypop, grepl(" County", countypop$areaname, perl=TRUE))
+countypop = tbl_df(countypop)
+countypop2012 <- countypop %>% 
+  filter(periodyear == 2012) %>%
+  select(area, areaname, population)
+countypop2012$area <- as.numeric(as.character(countypop2012$area))
+countypop2012$area <- as.integer(countypop2012$area)
+str(countypop2012)
+countycnts <- count(acc_va2012$COUNTY)
+counties <- merge(countypop2012, countycnts, by.x="area", by.y="x")
+counties$areaname <- gsub(" County", "", counties$areaname)  # before match() remove "County" from each areaname value in counties df
+counties$accrate <- counties$freq/(counties$population/60000)  # 60K is based on mean of county populations
 # Ideally, you'd be able to plug in the data as-is to the map() function, but it doesn't quite work. Some states in the map database are split into separate parts. For example, New York is split as Manhattan, "main" New York, Staten Island, and Long Island. You have to match these individual regions to the state values.
+# DO SAME THING FOR FOR COUNTYPOP USING CODE IN POP SECTION OF NOVA.R (SEE VA.COUNTY.POP2012)
 
 # Match values to database region names
 mapnames <- map("state", plot=FALSE)$names
@@ -156,6 +183,18 @@ regionlist <- strsplit(mapnames, ":")   # a list is returned
 mapnames.fin <- sapply(regionlist, "[", 1)
 m <- match(mapnames.fin, tolower(states$name)) # match returns a vector of the positions
 maprates <- states$accrate[m]
+
+# Match values to database for county names (munging required)
+countynames <- map("county", "virginia", plot=FALSE)$names
+countylist <- strsplit(countynames, ",")
+countynames.fin <- sapply(countylist, "[", 2)
+countylist2 <- strsplit(countynames.fin, ":")  # Need to do strsplit twice because map() contains "," and ":" as seps
+countynames2.fin <- sapply(countylist2, "[", 1)
+countynames2.fin
+
+
+mc <- match(countynames2.fin, tolower(counties$areaname), incomparables=NULL)
+countyrates <- counties$accrate[mc]
 
 # helper function that will help in the next step. It takes a value and returns a color based on that number.
 getColor <- function(x) {
@@ -170,11 +209,24 @@ getColor <- function(x) {
   }  
   return(col)
 }
+getColorCounty <- function(x) {
+  if(x > 20) {
+    col <- "#13373e" 
+  } else if (x > 15) {
+    col <- "#246571"
+  } else if (x > 10) {
+    col <- "#308898"
+  } else {
+    col <- "#7bc7d5"
+  }  
+  return(col)
+}
+
 # Now get a color for each accident rate per state. Apply the getColor() helper function to each value. Then all you have to do is map regions with those colors. Be sure to set fill to TRUE and col to statecols.
 statecols <- sapply(maprates, FUN=getColor)
 map("state", regions=states$name[m], proj="albers", param=c(39,45),fill=TRUE, col=statecols, border=NA, resolution=0)
 
-
+countycols <- sapply(countyrates, FUN=getColorCounty)
 ## Develop choropleth map for Virginia county bridges
 # get county database names
 countynames <- map("county", "virginia", plot=FALSE)$names
