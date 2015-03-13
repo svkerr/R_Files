@@ -84,6 +84,13 @@ va_commwork %>%
 pop <- subset(pop, grepl(" County", pop$areaname, perl=TRUE))
 # Create some dataframe subsets to analyze
 
+# Select just year 2012
+va.county.pop2012 <- pop %>% 
+  filter(periodyear == 2012) %>%
+  select(area, areaname, population)
+va.county.pop2012$area <- as.numeric(as.character(va.county.pop2012$area))
+va.county.pop2012$area <- as.integer(va.county.pop2012$area)
+str(va.county.pop2012)
 fairfax_pop <- pop %>%
   filter(areaname == "Fairfax County" & statename == "Virginia" & periodtype ==1) 
 

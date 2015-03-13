@@ -107,21 +107,22 @@ lines(varoads_albers, lwd=0.1)
 
 acc <- read.dbf("accident2001.dbf")
 acc2013 <- read.dbf("accident2013.dbf")
-head(acc)
-head(acc2013)
+acc2012 <- read.dbf("accident2012.dbf")
+
 table(acc$STATE)   # Note the FIPS code for each STATE
-acc_va2001 <- subset(acc, STATE==51)               # subset the acc dataframe to get only virginia
+acc_va2001 <- subset(acc, STATE==51)  # subset the acc dataframe to get only virginia
 acc_va2013 <- subset(acc2013, STATE==51)
+acc_va2012 <- subset(acc2012, STATE==51)
 
 # The map() function from the maps package does a lot of the work for you map-wise. In the code below, the first line draws a blank map with state boundaries. The second line draws points on the map, one point per accident. Notice the order of longitude and latitude.
 
 map("state", region="virginia", lwd=1, col="red")      # Default projection is rectangular
-# or i can map virginia with counties outlined
-map('county', 'virginia', col = palette())
+
+map('county', 'virginia', col = palette())             # OR i can map virginia with counties outlined
 
 points(acc_va2001$longitud, acc_va2001$latitude, col="red", bg="#000000", pch=21, cex=0.20)
 
-# You don't have to stick with the default rectangular projection. For example, you can use the Albers projection, as shown below. Notice that mapproject() is used in points(). This transforms the latitude and longitude coordinates so that they are placed properly on the new space.
+# You don't have to stick with the default map() rectangular projection. For example, you can use the Albers projection, as shown below. Notice that mapproject() is used in points(). This transforms the latitude and longitude coordinates so that they are placed properly on the new space.
 # Albers projection
 map("state", region="virginia", proj="albers", param=c(39,45), lwd=1, col="#cccccc")
 map("county", region="virginia", proj="albers", param=c(39,45), lwd=1, col="black")
@@ -140,7 +141,9 @@ points(mapproject(acc_va2013$LONGITUD, acc_va2013$LATITUDE), col="red", bg="#000
 
 # It might be useful to map the number of accidents by state, but instead of absolute counts, let's look at number of accidents per million population. 
 # NOTE: the below data munging could be done using dplyr() -- maybe do similar calcs later
+# NOTE: Want to do the same thing tutorial does but for virginia counties...
 statepop <- read.csv("states.csv")
+# DO SAME THING FOR FOR COUNTYPOP USING CODE IN POP SECTION OF NOVA.R (SEE VA.COUNTY.POP2012)
 statecnts <- count(acc$STATE)
 states <- merge(statepop, statecnts, by.x="code", by.y="x")
 glimpse(states)

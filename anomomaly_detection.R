@@ -1,5 +1,6 @@
 # Anomaly Detection using Twitter's anomaly detection library
 # Ref: https://blog.twitter.com/2015/introducing-practical-and-robust-anomaly-detection-in-a-time-series
+
 setwd("/Users/stuart/R_Files")
 
 # Install packages
@@ -8,8 +9,8 @@ library(RJSONIO)
 library(RCurl)
 library(ggplot2)
 
-install.packages("devtools")
-devtools::install_github("twitter/AnomalyDetection")
+#install.packages("devtools")
+#devtools::install_github("twitter/AnomalyDetection")
 library(AnomalyDetection)
 
 
