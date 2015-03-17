@@ -8,7 +8,8 @@ library(dplyr)      # Data formatting
 library(rgdal)      # Map Projections
 library(proj4)      # Map Projections
 library(plyr)
-
+library(choroplethr)
+library(choroplethrMaps)
 # RTTYP designations:
 # C = County
 # I = Interstate
@@ -167,13 +168,25 @@ countypop = tbl_df(countypop)
 countypop2012 <- countypop %>% 
   filter(periodyear == 2012) %>%
   select(area, areaname, population)
+
+# write out countypop2012 to csv file so that it matches wtih counties2.fin
+#write.csv(countypop2012, file = "countypopulation2012.csv")
+#countypop2012 <- read.csv("countypopulation2012.csv", sep=",", header=TRUE, stringsAsFactors= FALSE)
+
 countypop2012$area <- as.numeric(as.character(countypop2012$area))
 countypop2012$area <- as.integer(countypop2012$area)
 str(countypop2012)
+
 countycnts <- count(acc_va2012$COUNTY)
 counties <- merge(countypop2012, countycnts, by.x="area", by.y="x")
 counties$areaname <- gsub(" County", "", counties$areaname)  # before match() remove "County" from each areaname value in counties df
+counties$areaname <- gsub(" city", "", counties$areaname)
 counties$accrate <- counties$freq/(counties$population/60000)  # 60K is based on mean of county populations
+
+# write out counties to csv file so that it can be munged to include cities/counties that did not show up in acc or countypop data sets (that merge into counties) to that it matches with counties2.fin
+write.csv(counties, file = "counties_file.csv", row.names=FALSE)  # to get munged manually
+counties <- read.csv("counties_file.csv", sep=",", header=TRUE, stringsAsFactors= FALSE)
+#countypop2012 <- read.csv("countypopulation2012.csv", sep=",", header=TRUE, stringsAsFactors= FALSE)
 # Ideally, you'd be able to plug in the data as-is to the map() function, but it doesn't quite work. Some states in the map database are split into separate parts. For example, New York is split as Manhattan, "main" New York, Staten Island, and Long Island. You have to match these individual regions to the state values.
 # DO SAME THING FOR FOR COUNTYPOP USING CODE IN POP SECTION OF NOVA.R (SEE VA.COUNTY.POP2012)
 
@@ -187,13 +200,18 @@ maprates <- states$accrate[m]
 # Match values to database for county names (munging required)
 countynames <- map("county", "virginia", plot=FALSE)$names
 countylist <- strsplit(countynames, ",")
-countynames.fin <- sapply(countylist, "[", 2)
+countynames.fin <- sapply(countylist, "[", 2)  
+#NOTE(20150314): may want to stop here and match
 countylist2 <- strsplit(countynames.fin, ":")  # Need to do strsplit twice because map() contains "," and ":" as seps
 countynames2.fin <- sapply(countylist2, "[", 1)
 countynames2.fin
 
-
-mc <- match(countynames2.fin, tolower(counties$areaname), incomparables=NULL)
+# Let's try to get the 3 key datasets to have the same counties as countynames2.fin
+setdiff(tolower(counties$areaname), countynames2.fin)
+setdiff(countynames2.fin, tolower(counties$areaname) )
+# so from the above, it appears that i am missing the following counties from counties:
+#missing <- setdiff(countynames2.fin, tolower(counties$areaname) )
+mc <- match(countynames2.fin, tolower(counties$areaname))
 countyrates <- counties$accrate[mc]
 
 # helper function that will help in the next step. It takes a value and returns a color based on that number.
@@ -227,12 +245,17 @@ statecols <- sapply(maprates, FUN=getColor)
 map("state", regions=states$name[m], proj="albers", param=c(39,45),fill=TRUE, col=statecols, border=NA, resolution=0)
 
 countycols <- sapply(countyrates, FUN=getColorCounty)
-## Develop choropleth map for Virginia county bridges
-# get county database names
-countynames <- map("county", "virginia", plot=FALSE)$names
-countylist <- strsplit(countynames, ",")
-countynames.fin <- sapply(countylist, "[", 2)
-countylist2 <- strsplit(countynames.fin, ":")  # Need to do strsplit twice because map() contains "," and ":" as seps
-countynames2.fin <- sapply(countylist2, "[", 1)
-countynames2.fin
+map("county", regions=counties$name[mc], proj="albers", param=c(39,45),fill=TRUE, col=countycols, border=NA, resolution=0)
 
+# DID IT!! -- the key is to ensure that the maps() regions() line up with whatever you're feeding it. Had to manually create counties_file.csv
+map("county", regions="virginia", proj="albers", param=c(39,45),fill=TRUE, col=countycols, border=NA, resolution=0)
+
+## NOTE: Appears that I can't do a basic map-choropleth package for only virginia counties... it requires state level then zoom in on a given state
+
+######## Try the choroplethr Package
+data(df_pop_county)
+county_choropleth(df_pop_county,
+                  title="US 2012 County Population Estimates",
+                  legend="Population",
+                  buckets=5,
+                  zoom=c("virginia"))

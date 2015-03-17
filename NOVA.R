@@ -318,6 +318,11 @@ county.bridge.count <- bridges %>%
   summarise(bridges = n()) %>%
   arrange(desc(bridges))
 
+############### flowdata_maps like area #####################################
+bridges_county$Jurisdiction <- gsub(" County", "", bridges_county$Jurisdiction)
+bridgecnts <- count(bridges_county$Jurisdiction)
+setdiff(countynames2.fin, tolower(bridgecnts$x) )
+
 ### Bridges Sufficiency Rating ###############################
 bridges_srnot0 <- subset(bridges,Suffic.Rating.Numeric >= 0)
 summary(bridges_srnot0$Suffic.Rating.Numeric)
