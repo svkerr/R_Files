@@ -321,7 +321,14 @@ county.bridge.count <- bridges %>%
 ############### flowdata_maps like area #####################################
 bridges_county$Jurisdiction <- gsub(" County", "", bridges_county$Jurisdiction)
 bridgecnts <- count(bridges_county$Jurisdiction)
-setdiff(countynames2.fin, tolower(bridgecnts$x) )
+setdiff(countynames2.fin, tolower(bridgecnts$x) )      # NOTE: countynames2.fin from flow_data_maps.R
+write.csv(bridgecnts, file = "bridge_cnts.csv", row.names=FALSE)  # to get munged manually
+bridgecnts <- read.csv("bridge_cnts.csv", sep=",", header=TRUE, stringsAsFactors= FALSE)
+colnames(bridgecnts) <- c("areaname", "bridges")
+setdiff(tolower(bridgecnts$areaname), tolower(counties$areaname))
+# now merge with previous counties file
+merged_acc_bridges <- merge(counties, bridgecnts, by.x="areaname", by.y="areaname")
+
 
 ### Bridges Sufficiency Rating ###############################
 bridges_srnot0 <- subset(bridges,Suffic.Rating.Numeric >= 0)

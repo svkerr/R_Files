@@ -1,4 +1,4 @@
-# Flowing Data Tutorials
+# Flowing Data Tutorials and some Virginia Accident Mapping
 
 setwd("/Users/stuart/DataSets/FlowingData/")
 library(maptools)   # To plot maps
@@ -10,6 +10,7 @@ library(proj4)      # Map Projections
 library(plyr)
 library(choroplethr)
 library(choroplethrMaps)
+
 # RTTYP designations:
 # C = County
 # I = Interstate
@@ -209,10 +210,16 @@ countynames2.fin
 # Let's try to get the 3 key datasets to have the same counties as countynames2.fin
 setdiff(tolower(counties$areaname), countynames2.fin)
 setdiff(countynames2.fin, tolower(counties$areaname) )
+setdiff(countynames2.fin, tolower(merged_acc_bridges$areaname) )
+setdiff(tolower(merged_acc_bridges$areaname), countynames2.fin)
+
 # so from the above, it appears that i am missing the following counties from counties:
 #missing <- setdiff(countynames2.fin, tolower(counties$areaname) )
 mc <- match(countynames2.fin, tolower(counties$areaname))
 countyrates <- counties$accrate[mc]
+
+mb <- match(countynames2.fin, tolower(merged_acc_bridges$areaname))
+bridgenums <- merged_acc_bridges$bridges[mb]
 
 # helper function that will help in the next step. It takes a value and returns a color based on that number.
 getColor <- function(x) {
@@ -240,6 +247,18 @@ getColorCounty <- function(x) {
   return(col)
 }
 
+getColorBridge <- function(x) {
+  if(x > 300) {
+    col <- "#13373e" 
+  } else if (x > 150) {
+    col <- "#246571"
+  } else if (x > 78) {
+    col <- "#308898"
+  } else {
+    col <- "#7bc7d5"
+  }  
+  return(col)
+}
 # Now get a color for each accident rate per state. Apply the getColor() helper function to each value. Then all you have to do is map regions with those colors. Be sure to set fill to TRUE and col to statecols.
 statecols <- sapply(maprates, FUN=getColor)
 map("state", regions=states$name[m], proj="albers", param=c(39,45),fill=TRUE, col=statecols, border=NA, resolution=0)
@@ -247,8 +266,14 @@ map("state", regions=states$name[m], proj="albers", param=c(39,45),fill=TRUE, co
 countycols <- sapply(countyrates, FUN=getColorCounty)
 map("county", regions=counties$name[mc], proj="albers", param=c(39,45),fill=TRUE, col=countycols, border=NA, resolution=0)
 
+bridgecols <- sapply(bridgenums, FUN=getColorBridge)
+
 # DID IT!! -- the key is to ensure that the maps() regions() line up with whatever you're feeding it. Had to manually create counties_file.csv
+# Plot of county accident rates
 map("county", regions="virginia", proj="albers", param=c(39,45),fill=TRUE, col=countycols, border=NA, resolution=0)
+
+# Plot of county bridge county
+map("county", regions="virginia", proj="albers", param=c(39,45),fill=TRUE, col=bridgecols, border=NA, resolution=0)
 
 ## NOTE: Appears that I can't do a basic map-choropleth package for only virginia counties... it requires state level then zoom in on a given state
 

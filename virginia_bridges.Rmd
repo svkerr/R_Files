@@ -6,19 +6,40 @@ output: html_document
 ---
 
 ```{r,echo=FALSE,message=FALSE, results="hide", warning=FALSE}
+library(plyr)
 library(dplyr)
 library(knitr)
 library(ggvis)
 library(ggplot2)
 library(lubridate)
+library(foreign)
+library(maptools)   # To plot maps
+library(maps)       # To draw maps
+library(foreign)    # To read .dbf file
+library(proj4)      # Map Projections
+library(rgdal)      # Map Projections
+library(proj4)      # Map Projections
+library(choroplethr)
+library(choroplethrMaps)
+
+
 setwd("/Users/stuart/DataSets/virginia/")
 opts_chunk$set(fig.align='center',comment=NA)
+```
+
+```{r,echo=FALSE,message=FALSE, results="hide", warning=FALSE}
 # Read in data files
-bridges <- read.csv("bridge_inspections.csv", header=TRUE, quote="", row.names=NULL, stringsAsFactors = FALSE,strip.white = TRUE)  # special parameters set for this file
-pop <-read.table("population.txt", header=TRUE, sep="\t", stringsAsFactors = FALSE)
+bridges <- read.csv("/Users/stuart/DataSets/virginia/bridge_inspections.csv", header=TRUE, quote="", row.names=NULL, stringsAsFactors = FALSE, strip.white = TRUE)  # special parameters set for this file
+pop <-read.table("/Users/stuart/DataSets/virginia/population.txt", header=TRUE, sep="\t", stringsAsFactors = FALSE)
+acc2012 <- read.dbf("/Users/stuart/DataSets/FlowingData/accident2012.dbf")
+```
+
+```{r,echo=FALSE,message=FALSE, results="hide", warning=FALSE}
+# Transform data files
 bridges <-  tbl_df(bridges)
 pop <- tbl_df(pop)
 pop <- subset(pop, grepl(" County", pop$areaname, perl=TRUE))
+acc_va2012 <- subset(acc2012, STATE==51)
 
 virginia.pop <- pop %>%
   select(statename,areatyname,areaname,periodyear,periodtype, population) %>%
@@ -41,7 +62,7 @@ The American Society of Civil Engineers says the US needs massive investments in
 This analysis focuses on the state of Virginia's bridge infrastructure. Virginia (particularly Northern VA) is experiencing population growth. However, the state has an aging bridge infrastructure. So, several questions need to be asked. How sound is Virginia's existing bridge infrastructure? How many bridges are in need of repair? Are highly traveled bridges sound? How much will fixing the infrastructure cost? A goal of this analysis is twofold: 1) Identify (by county) and statistically describe the number of "unsafe" bridges and 2) Given that there exist finite resources to repair and replace bridges, establish a priority method based upon populations and average daily traffic flow over bridges so that the worst and most traveled bridges get higher priority.  Though we generalize the location of these bridges by county, we have data that can further identify the bridge by Route, Crossing and Virginia Structure Number. 
 
 # Data Set
-Two openly available data sets were fundamental to this analysis. The "bridge inspection" data set listed below, was obtained from [Open Virginia](http://data.openva.com/dataset/bridge-inspections). The bridge inspection data was current as of January 2014. It consists of 21,232 bridges. Below is a listing of the original data (prior to any modifications) explicitly identifying variables and their data type:
+Two openly available data sets were fundamental to this analysis. The "bridge inspection" data set listed below, was obtained from [Open Virginia](http://data.openva.com/dataset/bridge-inspections). The bridge inspection data was current as of January 2014. Below is a listing of the original data (prior to any modifications) explicitly identifying variables and their data type:
 
 ```{r,echo=FALSE,message=FALSE, warning=FALSE,results='markup'}
 glimpse(bridges)
@@ -58,6 +79,85 @@ Data analysis inevitably requires "data munging" often taking the form of "clean
 3. Removal of observations (entries): Some variables, though not sparsely populated, either did not have an entry or contained a "nonsense" value (e.g., -1 for a sufficiency rating). The observations corresponding these entries were removed. For example, the "Year.Built" entry resulted in removing 472 observations (`r round(472/21232 * 100,1)` percent). This is a concern since in those removed bridge observations, there may be some that are potentially structurally deficient. Given the low percentage, we removed these observations. A solution would be to travel to those particular areas and research county records; however, due to lack of resources associated with this IRAD, and need for accuracy, we removed them. 
 
 # How Many?
+
+In our prepared dataset, Virginia has a total of 21,232 bridges, constructed over decades. Below is a choropleth map that colors each Virginia county by the number of bridges it contains. Given that we have not produced a 'Legend' for the figure, the groupings were guided by the percentiles of bridges per county, and are described by:
+
+1. Lightest Blue: Less than 78 bridges
+2. Medium Blue:   78 <= bridges < 150
+3. Darker Blue:   150 <= bridges < 300
+4. Darkest Blue:  300 <= bridges
+
+
+```{r,echo=FALSE,message=FALSE, results="hide", warning=FALSE}
+# Set up coloring function for number of bridges per county
+getColorBridge <- function(x) {
+  if(x > 300) {
+    col <- "#13373e" 
+  } else if (x > 150) {
+    col <- "#246571"
+  } else if (x > 78) {
+    col <- "#308898"
+  } else {
+    col <- "#7bc7d5"
+  }  
+  return(col)
+}
+```
+
+```{r,echo=FALSE,message=FALSE, results="hide", warning=FALSE}
+# Behind the scenes for creating choropleth map
+countynames <- map("county", "virginia", plot=FALSE)$names
+countylist <- strsplit(countynames, ",")
+countynames.fin <- sapply(countylist, "[", 2)  
+countylist2 <- strsplit(countynames.fin, ":")  # Need to do strsplit twice because map() contains "," and ":" as seps
+countynames2.fin <- sapply(countylist2, "[", 1)
+
+# NOTE: brid_cnts.csv and counties_file.csv were prepared in separate R files flow_data_maps.R and NOVA.R
+bridgecnts <- read.csv("/Users/stuart/DataSets/virginia/bridge_cnts.csv", sep=",", header=TRUE, stringsAsFactors= FALSE)
+colnames(bridgecnts) <- c("areaname", "bridges")
+counties <- read.csv("/Users/stuart/DataSets/FlowingData/counties_file.csv")
+
+# now merge with  counties file
+merged_acc_bridges <- merge(counties, bridgecnts, by.x="areaname", by.y="areaname")
+
+mb <- match(countynames2.fin, tolower(merged_acc_bridges$areaname))
+bridgenums <- merged_acc_bridges$bridges[mb]
+bridgecols <- sapply(bridgenums, FUN=getColorBridge)
+```
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+map("county", regions="virginia", proj="albers", param=c(39,45),fill=TRUE, col=bridgecols, border=NA, resolution=0)
+```
+
+We see an interesting pattern of high density bridges/county, starting from the north in Shenandoah County, heading southwest going through Rockham, Augusta, Rockbridge, Botetourt, Roanoke Montgomery, Pulaski, Wythe, Smyth and Washington counties. This pattern appears to be important since seven of these eleven counties in this pattern have a total bridge count exceeding 300 bridges. To help plain this pattern, we ingested a "shape file" that contains graphical information regarding Virginia's Interstate, County, State and local highways and roads. The below plot shows:
+
+1. Interstate: Blue
+2. U.S. Roads: Maroon
+3. County Roads: Purple
+4. Other Roads: Black
+
+```{r,echo=FALSE,message=FALSE, results="hide", warning=FALSE}
+varoads <- readShapeLines("/Users/stuart/DataSets/FlowingData/tl_2014_51_prisecroads/tl_2014_51_prisecroads.shp")
+vausroads <- subset(varoads, RTTYP == "U")
+vacountyroads <- subset(varoads, RTTYP == "C")
+vainterstateroads <- subset(varoads, RTTYP == "I")
+vaotherroads <- subset(varoads, RTTYP != "U" | RTTYP != "C" | RTTYP != "I")
+```
+
+```{r,echo=FALSE,message=FALSE, warning=FALSE}
+par(mfrow=c(1,1), mar=c(0.2,0.2,0.2,0.2))
+plot(0, 0, type="n", axes=FALSE, xlim=varoads@bbox["x",], ylim=varoads@bbox["y",], xlab=NA, ylab=NA)
+lines(vausroads, col="red", lwd=2)
+lines(vacountyroads, col="purple", lwd=2)
+lines(vainterstateroads, col="blue", lwd=2)
+lines(vaotherroads, col="black", lwd=0.3)
+```
+
+The Interstate that threads this pattern together is the I-81. Does the I-81 make a significant contribution to the number of bridges in those counties? Yes - it turns out that the I-81 contributes 575 bridges in Virginia alone. 
+
+To help identify the counties, the following Virginia County border map (via a .gif file) is provided.
+![VirginiaCountyBorders.gif](/Users/stuart/DataSets/virginia/virginia-county-map2.gif)
+
 
 ### Aging Bridge Infrastructure
 
