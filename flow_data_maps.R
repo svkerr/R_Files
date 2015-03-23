@@ -124,6 +124,7 @@ map('county', 'virginia', col = palette())             # OR i can map virginia w
 
 points(acc_va2001$longitud, acc_va2001$latitude, col="red", bg="#000000", pch=21, cex=0.20)
 points(acc_va2012$LONGITUD, acc_va2012$LATITUDE, col="red", bg="#000000", pch=21, cex=0.20)
+points(acc_va2013$LONGITUD, acc_va2013$LATITUDE, col="red", bg="#000000", pch=21, cex=0.20)
 
 # You don't have to stick with the default map() rectangular projection. For example, you can use the Albers projection, as shown below. Notice that mapproject() is used in points(). This transforms the latitude and longitude coordinates so that they are placed properly on the new space.
 # Albers projection
@@ -274,6 +275,11 @@ map("county", regions="virginia", proj="albers", param=c(39,45),fill=TRUE, col=c
 
 # Plot of county bridge county
 map("county", regions="virginia", proj="albers", param=c(39,45),fill=TRUE, col=bridgecols, border=NA, resolution=0)
+
+plot(0,0,type="n", axes=FALSE, xlim=c(0,30), ylim=c(0,2))
+rect(c(5,10,15,20), c(1,1,1,1), c(10,15,20,25), c(1.25,1.25,1.25,1.25), , col=sapply(c(50,79,151,350), getColorBridge), border="white", lwd=0.4)
+text(15, 1.35, "Bridge Totals")
+text(c(78,150,300), c(0.8,0.8,0.8), c(78,150,300), cex=0.8) # Tick labels
 
 ## NOTE: Appears that I can't do a basic map-choropleth package for only virginia counties... it requires state level then zoom in on a given state
 
